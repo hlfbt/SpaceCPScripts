@@ -50,23 +50,28 @@ __ () {
 ## CAUTION
 ## Shitty-ass arguments handling incoming!!
 ## CAUTION
-while getopts "h?yuir:c:a:j:p:" opt
+while getopts "h?yuir:c:C:k:a:j:p:" opt
 do
   case "$opt" in
   h|\?) show_help; exit 0;;
   y) ultima_yes=1;;
   u) force_update=1;;
   i) force_update=2;;
-  r) if [ -f "$OPTARG" ]
+  r) if [ -s "$OPTARG" ]
      then SPACECP_RTKJAR=$OPTARG
      else printf '%s\n' "'$OPTARG' is not a valid RTK jar."; exit 1
      fi;;
-  c) if [ -f "$OPTARG" ]
+  c) if [ -s "$OPTARG" ]
+     then SPACECP_CONFFILE=$OPTARG
+     else printf '%s\n' "'$OPTARG' is not a valid configuration file."; exit 1
+     fi;;
+  C) if [ -s "$OPTARG" ]
      then SPACECP_PROPFILE=$OPTARG
      else printf '%s\n' "'$OPTARG' is not a valid properties file."; exit 1
      fi;;
+  k) SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]');;
   a) SPACECP_SERVAPI=$OPTARG;;
-  j) if [ -f "$OPTARG" ]
+  j) if [ -s "$OPTARG" ]
      then SPACECP_SERVJAR="$OPTARG"
      else printf '%s\n' "'$OPTARG' is not a valid server jar/file."; exit 1
      fi;;
@@ -93,23 +98,32 @@ do
   --install) force_update=2;;
   --server-api=*) SPACECP_SERVAPI="$args";;
   --rtk-jar=*)
-    if [ $force_update -ne 2 -a -f "$args" ]
+    if [ $force_update -ne 2 -a -s "$args" ]
     then SPACECP_RTKJAR="$args"
     else
       printf '%s\n' "'$args' is not a valid RTK jar."
       exit 1
     fi
     ;;
+  --config=*)
+    if [ $force_update -ne 2 -a -s "$args" ]
+    then SPACECP_CONFFILE="$args"
+    else
+      printf '%s\n' "'$args' is not a valid configuration file."
+      exit 1
+    fi
+    ;;
   --properties=*)
-    if [ $force_update -ne 2 -a -f "$args" ]
+    if [ $force_update -ne 2 -a -s "$args" ]
     then SPACECP_PROPFILE="$args"
     else
       printf '%s\n' "'$args' is not a valid properties file."
       exit 1
     fi
     ;;
+  --api-key=*) SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]');;
   --server-jar=*)
-    if [ $force_update -ne 2 -a -f "$args" ]
+    if [ $force_update -ne 2 -a -s "$args" ]
     then SPACECP_SERVJAR="$args"
     else
       printf '%s\n' "'$args' is not a valid server jar/file."
@@ -197,9 +211,9 @@ update_spacecp () {
          | tr '[:upper:]' '[:lower:]')
   wrapper_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
-  server_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p/' \
+  server_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                    | tr '[:upper:]' '[:lower:]')
-  spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p/' \
+  spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
   ## TO DO
   ## Do updating stuff
