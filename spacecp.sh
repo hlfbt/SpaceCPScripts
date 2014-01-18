@@ -214,10 +214,13 @@ update_spacecp () {
                     | tr '[:upper:]' '[:lower:]')
   server_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                    | tr '[:upper:]' '[:lower:]')
+<<<<<<< HEAD
   server_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
                  | tr '[:upper:]' '[:lower:]')
   server_autoupdate=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  auto-update: \([a-zA-Z]\+\)/\1/p' \
                       | tr '[:upper:]' '[:lower:]')
+=======
+>>>>>>> 3e680003dd2ff18133fa52d98f3698fbd747a187
   spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
   spacecp_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
