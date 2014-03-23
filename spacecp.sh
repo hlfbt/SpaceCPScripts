@@ -5,7 +5,7 @@ SPACECP_APIKEY=""
 # Mmh more tasty variables...
 SPACECP_URL="http://spacecp.net"
 # If you haven't guessed already, I'm going to declare all the important variables here
-SPACECP_SERVJAR="bukkit.jar"
+SPACECP_SERVJAR="craftbukkit.jar"
 # Yes, yes, variables, good, good
 SPACECP_PORT=25566
 # There are a bunch more...
@@ -24,34 +24,117 @@ SPACECP_RPJAR="plugins/rtkplugin.jar"
 SPACECP_DLAPIURL="http://dl.api.xereo.net"
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
+# Change the following two variables to use a custom start command
+# IMPORTANT: Arguments must be in an array!
 SPACECP_STARTCOMMAND="start-stop-daemon"
-SPACECP_STARTARGS="--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
-SPACECP_RTKARGS=""
+SPACECP_STARTARGS=(--start --pidfile 'spacecp.pid' --chdir "$(pwd)" --background --make-pidfile --exec)
+# Also comment out those if blocks to not make it overwrite it accidentally
 if command -v tmux >/dev/null 2>&1
-then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTARGS=""
+then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTARGS=(new-session -d -s 'SpaceCP')
 else if command -v screen >/dev/null 2>&1
-then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTARGS="-dmLS 'SpaceCP'"
+then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTARGS=(-dmLS 'SpaceCP')
 fi; fi
+# Variable for custom args passed to RTK
+# IMPORTANT: Arguments must be in an array!
+SPACECP_RTKARGS=()
 
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
 dn='/dev/null'
 
-#UUUHM plz dont change dis 1 kthxX
+# UUUHM plz dont change dis 1 kthxX
 OPTIND=1
 
 show_help () {
-  printf '%s\n' "wow it's a fucking help"; # help stuff goes here I guess...
+  printf '%s\n' "wow it's a fucking help"; # TODO help stuff goes here I guess...
+}
+urlencode () {
+  perl -MURI::Escape -e 'print uri_escape($ARGV[0]);' "$@"
 }
 __ () {
   printf '%s\n' "$___";
 }
-
+# Next is this masterpiece: a json-parser written 100% in sh and coreutils.
+# It can traverse json-arrays as well, only downside is it only supports json with a depth of 1
+#  (f.i. {foo:bar, json:{1:2}} but not {foo:bar, json:{json:{1:2}}}).
+# It's really fucking basic and will probably fail on anything just slightly more complicated,
+#  but it works for what I need it so that's fine with me!
+#
+# *so proud*
+json_parse () {
+  # Read json from stdin and set subjson to dummy value to "start" the loop
+  json="$(tr -d '\n' </dev/stdin)"
+  subjson="_"
+  d="$(echo "$json" | sed -n 's/^[ ]*\({\|\[\).*/\1/p')"
+  expr "$d" : "\({\|\[\)" >$dn && json="$(echo "$json" | sed 's/^[ ]*\({\|\[\)//')" || d=""
+  # Json parsing
+  if [ -z "$d" -o "$d" = "{" ]
+  then
+    # Return json and exit code 2 if no keys are given
+    [ -z "$1" ] && echo "$d$json" && return 2
+    while [ -n "$subjson" ] && expr "$subjson" : "^[ ]*}[ ]*$">$dn
+    do
+      # = Find subjson =
+      # subjson is just a key:value pair in the json.
+      # For this I simply wrote a regular expression in BRE that should match most if not all json key:value pairs
+      #  (it catches numbers and strings as key and numbers, strings, json and arrays as values).
+      # grep returns the first found pair (grep | head -n1 is practically a non-greedy version of sed 's/.*REGEXP//').
+      subjson="$(echo "$json" \
+                 | grep -o "\(\"[^\"]\+\"\|[^\":]\+\)[ ]*:[ ]*\({[^}]*}\|\[[^]]*\]\|[^\",}]\+\|\"[^}\"]*\"\)" \
+                 | head -n1)"
+      # Now simply check if the key of the pair is the given key.
+      if expr "$subjson" : "[ ]*[\"]\?$1[\"]\?[ ]*:.*" >$dn
+      then
+        # If it is, isolate the value of the key...
+        hit="$(echo "$subjson" | sed "s/[\"]\?$1[\"]\?[ ]*:[ ]*//; s/\(^\"\|\"$\)//g; s/\(^[ ]*\|[ ]*$\)//g")"
+        # ...and return it!
+        echo "$hit"
+        return 0
+      fi
+      # Escape that bitch!
+      subjson=$(echo "$subjson" | sed 's/\(\$\|\.\|\*\|\/\|\[\|\\\|\]\|\^\)/\\&/g')
+      # If the found key was not the given key, remove subjson from the whole json string and start from top!
+      # (stderr from sed is suppressed because it may throw errors on certain subjson)
+      json="$(echo "$json" | sed "s/.*$subjson[, ]*//")"
+    done
+  # Array parsing
+  else if [ -n "$d" -a "$d" = "[" ]
+  then
+    # Return json and exit code 2 if no number is given
+    #  (no arguments are ok since it's supposed to return the number of elements in the array then).
+    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$dn && echo "$json" && return 2
+    i=1
+    # Traverse array until no elements are left.
+    while [ -n "$subjson" ] || expr "$subjson" : "^[ ]*\][ ]*$">$dn
+    do
+      # = Find 'subjson' (subarray) =
+      # This is basically just the second part of the subjson regexp, not really much to explain...
+      subjson="$(echo "$json" | grep -o "\({[^}]*}\|\[[^]]*\]\|[^\",}]\+\|\"[^}\"]*\"\)[ ]*\(,\|\]\)[ ]*" | head -n1)"
+      # Return the current element if it's the wanted one.
+      if [ -n "$1" ] && [ $i -eq $1 ]
+      then
+        hit="$(echo "$subjson" | sed "s/[ ]*\(,\|\]\)[ ]*$//; s/\(^\"\|\"$\)//g; s/\(^[ ]*\|[ ]*$\)//g")"
+        echo "$hit"
+        return 0
+      fi
+      subjson=$(echo "$subjson" | sed 's/\(\$\|\.\|\*\|\/\|\[\|\\\|\]\|\^\)/\\&/g')
+      json="$(echo "$json" | sed "s/.*$subjson[ ]*//")"
+      i=$(expr $i + 1)
+    done
+    # Return the maximal number of elements if it couldn't find the wanted element or no argument was given.
+    # (i is always 2 bigger since the loop checks if subjson is zero, which will only be set 1 turn after json is zero,
+    #  and because it got initialized as 1 and not 0).
+    # But also exit code 2 since it's not a found element!
+    echo "$(expr $i - 2)"
+    return 2
+  fi; fi
+  return 1
+}
 
 ## CAUTION
 ## Shitty-ass arguments handling incoming!!
 ## CAUTION
-while getopts "h?yuir:c:C:k:a:j:p:" opt
+while getopts "h?yuir:c:C:k:a:j:p:d:" opt
 do
   case "$opt" in
   h|\?) show_help; exit 0;;
@@ -79,6 +162,10 @@ do
   p) if expr match "$OPTARG" '^[0-9]\+$' >$dn && [ "$OPTARG" -le 65535 -a "$OPTARG" -ge 1 ]
      then SPACECP_PORT="$OPTARG"
      else printf '%s\n' "'$OPTARG' is not a valid port number."; exit 1
+     fi;;
+  d) if expr match "$OPTARG" '^[0-9]\+$' >$dn
+     then SPACECP_SERVERID="$OPTARG"
+     else printf '%s\n' "'$OPTARG' is not a valid server id."; exit 1
      fi;;
   esac
 done
@@ -142,20 +229,16 @@ do
   "$_____") __ && exit 0;;
   esac
 done
-## Wow fucking arguments handling man
-## But I have to say I like what I wrote there (for now)
-
-urlencode () {
-  perl -MURI::Escape -e 'print uri_escape($ARGV[0]);' "$@"
-}
 
 install_spacecp () {
   ## Installing SpaceCP
   ## Checks for already existing files to not make the user redownload everything over an over again if he calls the
   ##  script wrongly or has some faulty values at first.
   printf '%s' "[     ] Getting configuration..."
-  spacecp_conf=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_SERVAPI/$SPACECP_APIKEY/config.yml")
-  [ -z "$spacecp_conf" ] && (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under '$SPACECP_SERVAPI'.")
+  curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID" -o "spacecp_conf.zip"
+  [ -e "spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under '$SPACECP_SERVAPI'.")
+  unzip "spacecp_conf.zip"
+  [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'.")
   echo "$spacecp_conf" > "$SPACECP_CONFFILE"
   [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_CONFFILE'." && exit 1)
   printf '\r%s\n' "[OK]    "
@@ -169,7 +252,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_SERVJAR" ]
   then
     curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_GDNAPIURL/$(urlencode "$(basename "$SPACECP_SERVJAR")")" -o "$SPACECP_SERVJAR" \
+    "$SPACECP_GDNAPIURL/$(urlencode "$(basename "$SPACECP_SERVJAR")")" -o "$SPACECP_SERVJAR" \ ## TODO lookup download address first with dlapi??
     || (printf '\r[ERROR] \n%s\n' \
         "Could not fetch the server jar '$(basename "$SPACECP_SERVJAR")' from SpaceGDN under '$SPACECP_GDNAPIURL'." \
         && exit 1)
@@ -179,7 +262,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_RTKJAR" ]
   then
     curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RTKJAR")")" -o "$SPACECP_RTKJAR" \
+    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RTKJAR")")" -o "$SPACECP_RTKJAR" \ ## TODO here too
     || (printf '\r[ERROR] \n%s\n' \
         "Could not download '$(basename "$SPACECP_RTKJAR")' from the download server under '$SPACECP_DLAPIURL'." \
         && exit 1)
@@ -189,7 +272,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_RPJAR" ]
   then
     curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RPJAR")")" -o "$SPACECP_RPJAR" \
+    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RPJAR")")" -o "$SPACECP_RPJAR" \ ## TODO same...
     || (printf '\r[ERROR] \n%s\n' \
         "Could not download '$(basename "$SPACECP_RPJAR")' from the download server under '$SPACECP_DLAPIURL'." \
         && exit 1)
@@ -199,7 +282,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_SMJAR" ]
   then
     curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_SMJAR")")" -o "$SPACECP_SMJAR" \
+    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_SMJAR")")" -o "$SPACECP_SMJAR" \ ## TODO still.
     || (printf '\r[ERROR] \n%s\n' \
         "Could not download '$(basename "$SPACECP_SMJAR")' from the download server under '$SPACECP_DLAPIURL'." \
         && exit 1)
@@ -208,18 +291,20 @@ install_spacecp () {
 }
 
 update_spacecp () {
-  slug=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  slug: \(.*-\)*\([^-]\+\)/\2/p' \
-         | tr '[:upper:]' '[:lower:]')
   wrapper_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
-  server_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
-                   | tr '[:upper:]' '[:lower:]')
-  server_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
-                 | tr '[:upper:]' '[:lower:]')
-  server_autoupdate=$(cat "$SPACECP_CONFFILE" | sed -n '/^server:$/,/^[^ ]\+/s/^  auto-update: \([a-zA-Z]\+\)/\1/p' \
-                      | tr '[:upper:]' '[:lower:]')
+  case "$wrapper_channel" in
+    development) spacecp_channel='dev';;
+    recommended) spacecp_channel='rec';;
+    latest) spacecp_channel='.*';;
+  esac
   spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
+  case "$spacecp_channel" in
+    development) spacecp_channel='dev';;
+    recommended) spacecp_channel='rec';;
+    latest) spacecp_channel='.*';;
+  esac
   spacecp_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
                   | tr '[:upper:]' '[:lower:]')
   spacecp_autoupdate=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  auto-update: \([a-zA-Z]\+\)/\1/p' \
@@ -234,9 +319,57 @@ update_spacecp () {
     printf '%s\n' "ERROR: Some variables could not be found in '$SPACECP_CONFFILE', your configuration may be damaged."
     return 1
   fi
+  # RTK Update Check
+  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+                   "$SPACECP_DLAPIURL/v1/software/remotetoolkit" | json_parse artifacts)
+  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+  do
+    
+  done
+
+  # RTK Plugin Update Check
+  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+                   "$SPACECP_DLAPIURL/v1/software/remotetoolkitplugin" | json_parse artifacts)
+  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+  do
+    
+  done
+
+  # SpaceCP Update Check
+  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+                   "$SPACECP_DLAPIURL/v1/software/spacecp_module" | json_parse artifacts)
+  update_url=''
+  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+  do
+    artifact="$(echo "$artifact_json" | json_parse $i)"
+    if expr "$(echo "$artifact" | json_parse channel)" : '^'"$spacecp_channel"'$' >$dn
+    then
+      if [ "$(echo "$artifact" | json_parse createdAt)" -gt "$(date '+%s')" ]
+      then
+        update_url="$(echo "$artifact" | json_parse url)"
+        break
+      fi
+    fi
+  done
+  if [ -n "$update_url" ]
+  then
+    hash="$(echo "$artifact" | json_parse hash)"
+    curl -sLA "SpaceCP Script $SPACECP______" "$update_url" -o "$SPACECP_SMJAR"
+    if [ "$hash" = "$(md5sum "$SPACECP_SMJAR" | cut -d' ' -f1)" ]
+    then
+      ##
+      ## UPDATED SPACECP MODULE
+      ##
+    else
+      ##
+      ## FAILED TO UPDATE SPACECP MODULE
+      ##
+    fi
+  fi
+
   ## TO DO
   ## Do updating stuff
-  ## lolwat gdn?
+  ## lolwat dlapi?
   ## TO DO
 }
 
@@ -246,11 +379,10 @@ start_spacecp () {
   ## It is EXTREMELY important for the starting command to automatically fork itself into the background,
   ##  or else we can't correctly check if it started to begin with, and more importantly,
   ##  cannot send a POST request to the SpaceCP servers to notify them that the server started!
-  if "$SPACECP_STARTCOMMAND" "$SPACECP_STARTARGS" "$SPACECP_RTKJAR" "$SPACECP_RTKARGS"
+  if "$SPACECP_STARTCOMMAND" "${SPACECP_STARTARGS[@]}" "$SPACECP_RTKJAR" "${SPACECP_RTKARGS[@]}"
   then printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
   else printf '\r[ERROR]\n%s\n' "Could not start '$SPACECP_RTKJAR' with '$SPACECP_STARTCOMMAND'."
   fi
-  curl -sLA "SpaceCP Script $SPACECP______" -X POST "$SPACECP_SERVAPI/$SPACECP_APIKEY/start"
 }
 
 if [ -s "$SPACECP_CONFFILE" ]
@@ -266,34 +398,36 @@ SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
 if [ -s "$SPACECP_CONFFILE" ]
 then
   if ! update_spacecp
-  then
-    printf '%s' "Could not update SpaceCP. Start anyway? [Y/n] "
-    [ $ultima_yes -eq 1 ] && yn="y" || read yn
+  then # Already installed but couldn't successfully update
+    printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
+    [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
     expr match "$yn" '^y.*' >$dn && yn=''
   fi
   if [ -z "$yn" ]
   then
     if ! start_spacecp
-    then
+    then # Already installed but couldn't successfully start
       printf '%s\n' "Could not start SpaceCP."
       exit 1
     fi
   fi
 else
-  printf '%s' "No SpaceCP configuration found. Install SpaceCP? [Y/n] "
-  [ $ultima_yes -eq 1 ] && (yn="y" && printf '\n') || read yn
+  printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
+  [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
   expr match "$yn" '^y.*' >$dn && yn=''
   if [ -z "$yn" ]
   then
     if install_spacecp
-    then
+    then # Successfully installed
       printf '%s\n' "SpaceCP installation succesfull. Starting SpaceCP for the first time."
       if ! start_spacecp
-      then
+      then # Successfully installed but not successfully started
         printf '%s\n' "Could not start SpaceCP."
         exit 1
+      else # Successfully installed and started
+        curl -sLA "SpaceCP Script $SPACECP______" -X POST "$SPACECP_SERVAPI/$SPACECP_APIKEY/start"
       fi
-    else
+    else # Not successfully installed
       printf '%s\n' "Could not install SpaceCP."
       exit 1
     fi
