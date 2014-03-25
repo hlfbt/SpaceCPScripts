@@ -21,9 +21,11 @@ SPACECP_SMJAR="toolkit/modules/spacemodule.jar"
 # glaring display last night, eh?
 SPACECP_RPJAR="plugins/rtkplugin.jar"
 # well fuck you than, if you're not gonna talk you might as well just go UGH
-SPACECP_DLAPIURL="http://dl.api.xereo.net"
-SPACECP_GDNAPIURL="http://gdn.api.xereo.net"
+SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
+SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
+___=""
+_____=""
 # Change the following two variables to use a custom start command
 # IMPORTANT: Arguments must be in an array!
 SPACECP_STARTCOMMAND="start-stop-daemon"
@@ -102,7 +104,7 @@ json_parse () {
   then
     # Return json and exit code 2 if no number is given
     #  (no arguments are ok since it's supposed to return the number of elements in the array then).
-    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$dn && echo "$json" && return 2
+    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$dn && echo "$d$json" && return 2
     i=1
     # Traverse array until no elements are left.
     while [ -n "$subjson" ] || expr "$subjson" : "^[ ]*\][ ]*$">$dn
@@ -236,11 +238,12 @@ install_spacecp () {
   ##  script wrongly or has some faulty values at first.
   printf '%s' "[     ] Getting configuration..."
   curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID" -o "spacecp_conf.zip"
-  [ -e "spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under '$SPACECP_SERVAPI'.")
-  unzip "spacecp_conf.zip"
-  [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'.")
-  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
-  [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_CONFFILE'." && exit 1)
+  [ -e "spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1)
+  unzip "spacecp_conf.zip" >$dn
+  rm "spacecp_conf.zip" >$dn
+  [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1)
+#  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
+#  [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_CONFFILE'." && exit 1)
   printf '\r%s\n' "[OK]    "
   printf '%s' "[     ] Getting properties..."
   spacecp_prop=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_SERVAPI/$SPACECP_APIKEY/properties")
@@ -251,46 +254,78 @@ install_spacecp () {
   printf '%s' "[     ] $SPACECP_SERVJAR..."
   if ! [ -s "$SPACECP_SERVJAR" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_GDNAPIURL/$(urlencode "$(basename "$SPACECP_SERVJAR")")" -o "$SPACECP_SERVJAR" \ ## TODO lookup download address first with dlapi??
-    || (printf '\r[ERROR] \n%s\n' \
+    ## UGLY HARDCODED STUFF
+    if expr "$SPACECP_SERVJAR" : "craftbukkit\.jar$" >$dn
+    then
+      dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+      "$SPACECP_GDNAPIURL/jar/3/channel/5/build?sort=build.build.desc" | grep -o '"url"[ ]*:[ ]*"[^"]*"' \
+      | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+      [ -z "$dlurl" ] && (printf '\r[ERROR] \n%s\n' \
+        "Could not find any recommended build for '$SPACECP_SERVJAR' under '$SPACECP_GDNAPIURL'." \
+        && exit 1)
+      curl -sLA "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_SERVJAR"
+      [ -s "$SPACECP_SERVJAR" ] || (printf '\r[ERROR] \n%s\n' \
         "Could not fetch the server jar '$(basename "$SPACECP_SERVJAR")' from SpaceGDN under '$SPACECP_GDNAPIURL'." \
         && exit 1)
+    else
+      printf '\r[ERROR] \n%s\n' "Could not find '$SPACECP_SERVJAR'. Please install it first."
+      return 1
+    fi
+    ## PHEW, IT'S OVER (FOR NOW)
   fi
   printf '\r%s\n' "[OK]    "
   printf '%s' "[     ] $SPACECP_RTKJAR..."
   if ! [ -s "$SPACECP_RTKJAR" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RTKJAR")")" -o "$SPACECP_RTKJAR" \ ## TODO here too
-    || (printf '\r[ERROR] \n%s\n' \
-        "Could not download '$(basename "$SPACECP_RTKJAR")' from the download server under '$SPACECP_DLAPIURL'." \
-        && exit 1)
+    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
+    "$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec" | grep -o '"url"[ ]*:[ ]*"[^"]*"' \
+    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+    [ -z "$dlurl" ] && (printf '\r[ERROR] \n%s\n' \
+      "Could not find any recommended build for '$SPACECP_RTKJAR' under '$SPACECP_DLAPIURL'." \
+      && exit 1)
+    curl -sLA "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_RTKJAR"
+    [ -s "$SPACECP_RTKJAR" ] || (printf '\r[ERROR] \n%s\n' \
+      "Could not fetch the Remotetoolkit jar '$(basename "$SPACECP_RTKJAR")' from SpaceDL under '$SPACECP_DLAPIURL'." \
+      && exit 1)
   fi
   printf '\r%s\n' "[OK]    "
   printf '%s' "[     ] $SPACECP_RPJAR..."
   if ! [ -s "$SPACECP_RPJAR" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_RPJAR")")" -o "$SPACECP_RPJAR" \ ## TODO same...
-    || (printf '\r[ERROR] \n%s\n' \
-        "Could not download '$(basename "$SPACECP_RPJAR")' from the download server under '$SPACECP_DLAPIURL'." \
-        && exit 1)
+    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
+    "$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec" | grep -o '"url"[ ]*:[ ]*"[^"]*"' \
+    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+    [ -z "$dlurl" ] && (printf '\r[ERROR] \n%s\n' \
+      "Could not find any recommended build for '$SPACECP_RPJAR' under '$SPACECP_DLAPIURL'." \
+      && exit 1)
+    curl -sLA "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_RPJAR"
+    [ -s "$SPACECP_RPJAR" ] || (printf '\r[ERROR] \n%s\n' \
+      "Could not fetch the RTKplugin jar '$(basename "$SPACECP_RPJAR")' from SpaceDL under '$SPACECP_DLAPIURL'." \
+      && exit 1)
   fi
   printf '\r%s\n' "[OK]    "
   printf '%s' "[     ] $SPACECP_SMJAR..."
   if ! [ -s "$SPACECP_SMJAR" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/$(urlencode "$(basename "$SPACECP_SMJAR")")" -o "$SPACECP_SMJAR" \ ## TODO still.
-    || (printf '\r[ERROR] \n%s\n' \
-        "Could not download '$(basename "$SPACECP_SMJAR")' from the download server under '$SPACECP_DLAPIURL'." \
-        && exit 1)
+    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
+    "$SPACECP_DLAPIURL/software/spacecp_module?channel=rec" | grep -o '"url"[ ]*:[ ]*"[^"]*"' \
+    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+    [ -z "$dlurl" ] && (printf '\r[ERROR] \n%s\n' \
+      "Could not find any recommended build for '$SPACECP_SMJAR' under '$SPACECP_DLAPIURL'." \
+      && exit 1)
+    curl -sLA "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_SMJAR"
+    [ -s "$SPACECP_SMJAR" ] || (printf '\r[ERROR] \n%s\n' \
+      "Could not fetch the SpaceModule jar '$(basename "$SPACECP_SMJAR")' from SpaceDL under '$SPACECP_DLAPIURL'." \
+      && exit 1)
   fi
   printf '\r%s\n' "[OK]    "
 }
 
 update_spacecp () {
+
+  ## NOT FULLY IMPLEMENTED YET
+  return 0
+
   wrapper_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
                     | tr '[:upper:]' '[:lower:]')
   case "$wrapper_channel" in
@@ -321,7 +356,7 @@ update_spacecp () {
   fi
   # RTK Update Check
   artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-                   "$SPACECP_DLAPIURL/v1/software/remotetoolkit" | json_parse artifacts)
+                   "$SPACECP_DLAPIURL/software/remotetoolkit" | json_parse artifacts)
   for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
   do
     
@@ -337,7 +372,7 @@ update_spacecp () {
 
   # SpaceCP Update Check
   artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-                   "$SPACECP_DLAPIURL/v1/software/spacecp_module" | json_parse artifacts)
+                   "$SPACECP_DLAPIURL/software/spacecp_module" | json_parse artifacts)
   update_url=''
   for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
   do
