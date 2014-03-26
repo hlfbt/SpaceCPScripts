@@ -180,8 +180,8 @@ do
      then SPACECP_PORT="$OPTARG"
      else printf '%s\n' "'$OPTARG' is not a valid port number."; exit 1
      fi;;
-  d) if expr match "$OPTARG" '^[0-9]\+$' >$dn
-     then SPACECP_SERVERID="$OPTARG"
+  d) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_SERVERID=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
      else printf '%s\n' "'$OPTARG' is not a valid server id."; exit 1
      fi;;
   esac
