@@ -153,13 +153,13 @@ json_parse () {
 ## CAUTION
 ## Shitty-ass arguments handling incoming!!
 ## CAUTION
-while getopts "h?yuir:c:k:a:j:p:d:" opt
+while getopts "h?yuIr:c:k:a:j:p:i:" opt
 do
   case "$opt" in
   h|\?) show_help; [ -n "$sourced" ] && return 0 || exit 0;;
   y) ultima_yes=1;;
   u) force_update=1;;
-  i) force_update=2;;
+  I) force_update=2;;
   r) if [ -s "$OPTARG" ]
      then SPACECP_RTKJAR=$OPTARG
      else printf '%s\n' "'$OPTARG' is not a valid RTK jar."; [ -n "$sourced" ] && return 1 || exit 1
@@ -181,7 +181,7 @@ do
      then SPACECP_PORT="$OPTARG"
      else printf '%s\n' "'$OPTARG' is not a valid port number."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
-  d) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
+  i) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
      then SPACECP_SERVID=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]')
      else printf '%s\n' "'$OPTARG' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
@@ -278,7 +278,7 @@ install_spacecp () {
     if expr "$SPACECP_SERVJAR" : "craftbukkit\.jar$" >$dn
     then
       dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-      "$SPACECP_GDNAPIURL/jar/3/channel/5/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
+      "$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
       | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
       [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
         "Could not find any recommended build for '$SPACECP_SERVJAR' from SpaceGDN under\
@@ -529,7 +529,7 @@ then
   oldtmp=$(/bin/ls|grep -om1 '^spacecptmp_[0-9a-zA-Z]\{10\}$')
   printf '%s\n' "Old temporary folder found, please delete it first ($oldtmp)"
   printf '%s\n' \
-  "Delete all newly installed files or use -i/--install to force an installation if the last was unsuccesfull."
+  "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
   expr match "$yn" '^y.*' >$dn && yn=''
