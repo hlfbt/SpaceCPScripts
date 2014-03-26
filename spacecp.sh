@@ -30,16 +30,18 @@ _____=""
 # DEFAULT: "start-stop-daemon"
 SPACECP_STARTCOMMAND="start-stop-daemon"
 # DEFAULT: "--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
-SPACECP_STARTARGS="--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
+SPACECP_STARTPRE="--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
+SPACECP_STARTSU=""
 # Also comment out those if blocks to not make it overwrite it accidentally
 if command -v tmux >/dev/null 2>&1
 # DEFAULT: "tmux"
-# DEFAULT: "new-session -d -s 'SpaceCP'"
-then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTARGS="new-session -d -s 'SpaceCP'"
+# DEFAULT: "new-session -d -s 'SpaceCP' \""
+# DEFAULT: "\""
+then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTPRE="new-session -d -s 'SpaceCP' \"" && SPACECP_STARTSU="\""
 else if command -v screen >/dev/null 2>&1
 # DEFAULT: "screen"
 # DEFAULT: "-dmLS 'SpaceCP'"
-then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTARGS="-dmLS 'SpaceCP'"
+then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTPRE="-dmLS 'SpaceCP'"
 fi; fi
 # Variable for custom args passed to RTK
 # IMPORTANT: Arguments must be in a string!
@@ -165,7 +167,10 @@ do
      then SPACECP_CONFFILE=$OPTARG
      else printf '%s\n' "'$OPTARG' is not a valid configuration file."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
-  k) SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]');;
+  k) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]')
+     else printf '%s\n' "'$OPTARG' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
+     fi;;
   a) SPACECP_SERVAPI=$OPTARG;;
   j) if [ -s "$OPTARG" ]
      then SPACECP_SERVJAR="$OPTARG"
@@ -176,7 +181,7 @@ do
      else printf '%s\n' "'$OPTARG' is not a valid port number."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   d) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_SERVERID=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
+     then SPACECP_SERVID=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]')
      else printf '%s\n' "'$OPTARG' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   esac
@@ -213,7 +218,14 @@ do
       [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
-  --api-key=*) SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]');;
+  --api-key=*) if expr match "$args" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]')
+     else printf '%s\n' "'$args' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
+     fi;;
+  --server-id=*) if expr match "$args" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_SERVID=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]')
+     else printf '%s\n' "'$args' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
+     fi;;
   --server-jar=*)
     if [ $force_update -ne 2 -a -s "$args" ]
     then SPACECP_SERVJAR="$args"
@@ -246,7 +258,7 @@ install_spacecp () {
 
   printf '%s' "[     ] Getting configuration..."
   curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_conf.zip" --create-dirs \
-  "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID"
+  "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID"
   [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' \
     "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1) || return 1
   unzip -uo "$tmp/spacecp_conf.zip" >$dn
@@ -333,8 +345,11 @@ install_spacecp () {
   printf '%s' "[     ] SpaceCP Libraries..."
   libver=$(cat "$SPACECP_CONFFILE" 2>/dev/null | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
   libjson=$(curl -sLA "SpaceCP Script $SPACECP_____" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
-  newliburl=$(echo "$libjson" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-  newlibver=$(echo "$libjson" | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
+  newliburl=$(printf '%s' "$libjson" \
+              | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
+              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+  newlibver=$(printf '%s' "$libjson" \
+              | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
               | head -n1 | sed 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/')
   if [ -z "$libver" ]
   then
@@ -469,9 +484,13 @@ start_spacecp () {
   ## It is EXTREMELY important for the starting command to automatically fork itself into the background,
   ##  or else we can't correctly check if it started to begin with, and more importantly,
   ##  cannot send a POST request to the SpaceCP servers to notify them that the server started!
-  if eval "$SPACECP_STARTCOMMAND" "$SPACECP_STARTARGS" "$SPACECP_JAVABIN" "$SPACECP_JAVAARGS" \
-          "$SPACECP_RTKJAR" "$SPACECP_RTKARGS"
-  then printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
+  if eval "$SPACECP_STARTCOMMAND" "$SPACECP_STARTPRE" \
+          "$SPACECP_JAVABIN" "$SPACECP_JAVAARGS" \
+          "$SPACECP_RTKJAR" "$SPACECP_RTKARGS" "$SPACECP_STARTSU"
+  then
+    printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
+    curl -sLA "SpaceCP Script $SPACECP______" -X POST \
+    "$SPACECP_URL/api/serverStarted?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID" -o $dn
   else printf '\r[ERROR]\n%s\n' "Could not start '$SPACECP_JAVABIN $SPACECP_JAVAARGS $SPACECP_RTKJAR $SPACECP_RTKARGS'\
  with '$SPACECP_STARTCOMMAND $SPACECP_STARTARGS'."
   fi
@@ -486,6 +505,12 @@ then
   [ -n "$sourced" ] && return 1 || exit 1
 fi
 SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
+if [ -z "$SPACECP_SERVID" ]
+then
+  printf '%s\n' "No Server ID, exiting."
+  [ -n "$sourced" ] && return 1 || exit 1
+fi
+SPACECP_SERVID=$(urlencode "$SPACECP_SERVID")
 
 if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$dn
 then
@@ -529,8 +554,6 @@ else
       then # Successfully installed but not successfully started
         printf '%s\n' "Could not start SpaceCP."
         [ -n "$sourced" ] && return 1 || exit 1
-      else # Successfully installed and started
-        curl -sLA "SpaceCP Script $SPACECP______" -X POST "$SPACECP_SERVAPI/$SPACECP_APIKEY/start"
       fi
     else # Not successfully installed
       printf '%s\n' "Could not install SpaceCP."
