@@ -376,6 +376,7 @@ install_spacecp () {
     fi
   else
     if [ -n "$newliburl" ] && [ -n "$newlibver" ]
+    then
       if [ "$libver" -lt "$newlibver" ]
       then
         ## CONF EXISTS AND NEW CONF FOUND
