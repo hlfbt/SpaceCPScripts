@@ -406,86 +406,86 @@ update_spacecp () {
   ## NOT FULLY IMPLEMENTED YET
   return 0
 
-  wrapper_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
-                    | tr '[:upper:]' '[:lower:]')
-  case "$wrapper_channel" in
-    development) spacecp_channel='dev';;
-    recommended) spacecp_channel='rec';;
-    latest) spacecp_channel='.*';;
-  esac
-  spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
-                    | tr '[:upper:]' '[:lower:]')
-  case "$spacecp_channel" in
-    development) spacecp_channel='dev';;
-    recommended) spacecp_channel='rec';;
-    latest) spacecp_channel='.*';;
-  esac
-  spacecp_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
-                  | tr '[:upper:]' '[:lower:]')
-  spacecp_autoupdate=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  auto-update: \([a-zA-Z]\+\)/\1/p' \
-                       | tr '[:upper:]' '[:lower:]')
-  [ -z "$SPACECP_APIKEY" ] && SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" \
-                                               | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-zA-Z]\+\)/\1/p' \
-                                               | tr '[:upper:]' '[:lower:]')
-  if [ -z "$slug" ] || [ -z "$wrapper_channel" ] || [ -z "$server_channel" ] || [ -z "$server_build" ] \
-     || [ -z "$server_autoupdate" ] || [ -z "$spacecp_channel" ] || [ -z "$spacecp_build" ] \
-     || [ -z "$spacecp_autoupdate" ] || [ -z "$SPACECP_APIKEY" ]
-  then
-    printf '%s\n' "ERROR: Some variables could not be found in '$SPACECP_CONFFILE', your configuration may be damaged."
-    return 1
-  fi
-  # RTK Update Check
-  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-                   "$SPACECP_DLAPIURL/software/remotetoolkit" | json_parse artifacts)
-  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
-  do
-    
-  done
-
-  # RTK Plugin Update Check
-  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-                   "$SPACECP_DLAPIURL/v1/software/remotetoolkitplugin" | json_parse artifacts)
-  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
-  do
-    
-  done
-
-  # SpaceCP Update Check
-  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-                   "$SPACECP_DLAPIURL/software/spacecp_module" | json_parse artifacts)
-  update_url=''
-  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
-  do
-    artifact="$(echo "$artifact_json" | json_parse $i)"
-    if expr "$(echo "$artifact" | json_parse channel)" : '^'"$spacecp_channel"'$' >$dn
-    then
-      if [ "$(echo "$artifact" | json_parse createdAt)" -gt "$(date '+%s')" ]
-      then
-        update_url="$(echo "$artifact" | json_parse url)"
-        break
-      fi
-    fi
-  done
-  if [ -n "$update_url" ]
-  then
-    hash="$(echo "$artifact" | json_parse hash)"
-    curl -sLA "SpaceCP Script $SPACECP______" "$update_url" -o "$SPACECP_SMJAR"
-    if [ "$hash" = "$(md5sum "$SPACECP_SMJAR" | cut -d' ' -f1)" ]
-    then
-      ##
-      ## UPDATED SPACECP MODULE
-      ##
-    else
-      ##
-      ## FAILED TO UPDATE SPACECP MODULE
-      ##
-    fi
-  fi
-
-  ## TO DO
-  ## Do updating stuff
-  ## lolwat dlapi?
-  ## TO DO
+#  wrapper_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
+#                    | tr '[:upper:]' '[:lower:]')
+#  case "$wrapper_channel" in
+#    development) spacecp_channel='dev';;
+#    recommended) spacecp_channel='rec';;
+#    latest) spacecp_channel='.*';;
+#  esac
+#  spacecp_channel=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' \
+#                    | tr '[:upper:]' '[:lower:]')
+#  case "$spacecp_channel" in
+#    development) spacecp_channel='dev';;
+#    recommended) spacecp_channel='rec';;
+#    latest) spacecp_channel='.*';;
+#  esac
+#  spacecp_build=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  build: \([a-zA-Z]\+\)/\1/p' \
+#                  | tr '[:upper:]' '[:lower:]')
+#  spacecp_autoupdate=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  auto-update: \([a-zA-Z]\+\)/\1/p' \
+#                       | tr '[:upper:]' '[:lower:]')
+#  [ -z "$SPACECP_APIKEY" ] && SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" \
+#                                               | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-zA-Z]\+\)/\1/p' \
+#                                               | tr '[:upper:]' '[:lower:]')
+#  if [ -z "$slug" ] || [ -z "$wrapper_channel" ] || [ -z "$server_channel" ] || [ -z "$server_build" ] \
+#     || [ -z "$server_autoupdate" ] || [ -z "$spacecp_channel" ] || [ -z "$spacecp_build" ] \
+#     || [ -z "$spacecp_autoupdate" ] || [ -z "$SPACECP_APIKEY" ]
+#  then
+#    printf '%s\n' "ERROR: Some variables could not be found in '$SPACECP_CONFFILE', your configuration may be damaged."
+#    return 1
+#  fi
+#  # RTK Update Check
+#  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+#                   "$SPACECP_DLAPIURL/software/remotetoolkit" | json_parse artifacts)
+#  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+#  do
+#    
+#  done
+#
+#  # RTK Plugin Update Check
+#  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+#                   "$SPACECP_DLAPIURL/v1/software/remotetoolkitplugin" | json_parse artifacts)
+#  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+#  do
+#    
+#  done
+#
+#  # SpaceCP Update Check
+#  artifacts_json=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
+#                   "$SPACECP_DLAPIURL/software/spacecp_module" | json_parse artifacts)
+#  update_url=''
+#  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
+#  do
+#    artifact="$(echo "$artifact_json" | json_parse $i)"
+#    if expr "$(echo "$artifact" | json_parse channel)" : '^'"$spacecp_channel"'$' >$dn
+#    then
+#      if [ "$(echo "$artifact" | json_parse createdAt)" -gt "$(date '+%s')" ]
+#      then
+#        update_url="$(echo "$artifact" | json_parse url)"
+#        break
+#      fi
+#    fi
+#  done
+#  if [ -n "$update_url" ]
+#  then
+#    hash="$(echo "$artifact" | json_parse hash)"
+#    curl -sLA "SpaceCP Script $SPACECP______" "$update_url" -o "$SPACECP_SMJAR"
+#    if [ "$hash" = "$(md5sum "$SPACECP_SMJAR" | cut -d' ' -f1)" ]
+#    then
+#      ##
+#      ## UPDATED SPACECP MODULE
+#      ##
+#    else
+#      ##
+#      ## FAILED TO UPDATE SPACECP MODULE
+#      ##
+#    fi
+#  fi
+#
+#  ## TO DO
+#  ## Do updating stuff
+#  ## lolwat dlapi?
+#  ## TO DO
 }
 
 start_spacecp () {
