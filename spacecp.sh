@@ -81,13 +81,13 @@ json_parse () {
   json="$(tr -d '\n' </dev/stdin)"
   subjson="_"
   d="$(echo "$json" | sed -n 's/^[ ]*\({\|\[\).*/\1/p')"
-  expr "$d" : "\({\|\[\)" >$dn && json="$(echo "$json" | sed 's/^[ ]*\({\|\[\)//')" || d=""
+  expr "$d" : "\({\|\[\)" >$o && json="$(echo "$json" | sed 's/^[ ]*\({\|\[\)//')" || d=""
   # Json parsing
   if [ -z "$d" -o "$d" = "{" ]
   then
     # Return json and exit code 2 if no keys are given
     [ -z "$1" ] && echo "$d$json" && return 2
-    while [ -n "$subjson" ] && expr "$subjson" : "^[ ]*}[ ]*$">$dn
+    while [ -n "$subjson" ] && expr "$subjson" : "^[ ]*}[ ]*$">$o
     do
       # = Find subjson =
       # subjson is just a key:value pair in the json.
@@ -98,7 +98,7 @@ json_parse () {
                  | grep -o "\(\"[^\"]\+\"\|[^\":]\+\)[ ]*:[ ]*\({[^}]*}\|\[[^]]*\]\|[^\",}]\+\|\"[^}\"]*\"\)" \
                  | head -n1)"
       # Now simply check if the key of the pair is the given key.
-      if expr "$subjson" : "[ ]*[\"]\?$1[\"]\?[ ]*:.*" >$dn
+      if expr "$subjson" : "[ ]*[\"]\?$1[\"]\?[ ]*:.*" >$o
       then
         # If it is, isolate the value of the key...
         hit="$(echo "$subjson" | sed "s/[\"]\?$1[\"]\?[ ]*:[ ]*//; s/\(^\"\|\"$\)//g; s/\(^[ ]*\|[ ]*$\)//g")"
@@ -117,10 +117,10 @@ json_parse () {
   then
     # Return json and exit code 2 if no number is given
     #  (no arguments are ok since it's supposed to return the number of elements in the array then).
-    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$dn && echo "$d$json" && return 2
+    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$o && echo "$d$json" && return 2
     i=1
     # Traverse array until no elements are left.
-    while [ -n "$subjson" ] || expr "$subjson" : "^[ ]*\][ ]*$">$dn
+    while [ -n "$subjson" ] || expr "$subjson" : "^[ ]*\][ ]*$">$o
     do
       # = Find 'subjson' (subarray) =
       # This is basically just the second part of the subjson regexp, not really much to explain...
@@ -172,53 +172,53 @@ do
   esac
 
   case "$par" in
-  --help|-h|-\?)
-    show_help
-    [ -n "$sourced" ] && return 0 || exit 0
-    ;;
-  --always-yes|-y) ultima_yes=1;;
-  --update|-U) force_update=1;;
-  --install|-I) force_update=2;;
-  --url|-u) SPACECP_URL="$arg"; shift;;
-  --rtk-jar|-r)
-    if [ $force_update -ne 2 -a -s "$arg" ]
-    then SPACECP_RTKJAR="$arg"
-    else
-      printf '%s\n' "'$arg' is not a valid RTK jar."
+    --help|-h|-\?)
+      show_help
+      [ -n "$sourced" ] && return 0 || exit 0
+      ;;
+    --always-yes|-y) ultima_yes=1;;
+    --update|-U) force_update=1;;
+    --install|-I) force_update=2;;
+    --url|-u) SPACECP_URL="$arg"; shift;;
+    --rtk-jar|-r)
+      if [ $force_update -ne 2 -a -s "$arg" ]
+      then SPACECP_RTKJAR="$arg"
+      else
+        printf '%s\n' "'$arg' is not a valid RTK jar."
+        [ -n "$sourced" ] && return 1 || exit 1
+      fi
+      shift;;
+    --config|-c)
+      if [ $force_update -ne 2 -a -s "$arg" ]
+      then SPACECP_CONFFILE="$arg"
+      else
+        printf '%s\n' "'$arg' is not a valid configuration file."
+        [ -n "$sourced" ] && return 1 || exit 1
+      fi
+      shift;;
+    --api-key|-k) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
+       then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+       else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
+       fi
+       shift;;
+    --server-id|-i) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
+       then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+       else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
+       fi
+       shift;;
+    --server-jar|-j)
+      if [ $force_update -ne 2 -a -s "$arg" ]
+      then SPACECP_SERVJAR="$arg"
+      else
+        printf '%s\n' "'$arg' is not a valid server jar/file."
+        [ -n "$sourced" ] && return 1 || exit 1
+      fi
+      shift;;
+    $_____) if [ "$arg" == "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
+    *)
+      printf '%s\n' "Invalid argument '$1'"
       [ -n "$sourced" ] && return 1 || exit 1
-    fi
-    shift;;
-  --config|-c)
-    if [ $force_update -ne 2 -a -s "$arg" ]
-    then SPACECP_CONFFILE="$arg"
-    else
-      printf '%s\n' "'$arg' is not a valid configuration file."
-      [ -n "$sourced" ] && return 1 || exit 1
-    fi
-    shift;;
-  --api-key|-k) if expr match "$arg" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
-     fi
-     shift;;
-  --server-id|-i) if expr match "$arg" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
-     fi
-     shift;;
-  --server-jar|-j)
-    if [ $force_update -ne 2 -a -s "$arg" ]
-    then SPACECP_SERVJAR="$arg"
-    else
-      printf '%s\n' "'$arg' is not a valid server jar/file."
-      [ -n "$sourced" ] && return 1 || exit 1
-    fi
-    shift;;
-  $_____) if [ "$arg" == "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
-  *)
-    printf '%s\n' "Invalid argument '$1'"
-    [ -n "$sourced" ] && return 1 || exit 1
-    ;;
+      ;;
   esac
 
   shift
@@ -239,7 +239,7 @@ install_spacecp () {
   "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID"
   [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under\
  '$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID'." && exit 1) || return 1
-  unzip -uo "$tmp/spacecp_conf.zip" >$dn
+  unzip -uo "$tmp/spacecp_conf.zip" >$o
   [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1) \
                              || return 1
 #  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
@@ -252,7 +252,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_SERVJAR" ]
   then
     ## UGLY HARDCODED STUFF
-    if expr "$SPACECP_SERVJAR" : "craftbukkit\.jar$" >$dn
+    if expr "$SPACECP_SERVJAR" : "craftbukkit\.jar$" >$o
     then
       dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
       "$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -337,13 +337,13 @@ install_spacecp () {
       [ -s "$tmp/spacecp_libraries.zip" ] || (printf '\r[ERROR] %s\n' \
                                               "Could not fetch the SpaceCP Libraries from '$newliburl'." \
                                               && exit 1) || return 1
-      unzip -uo "$tmp/spacecp_libraries.zip" >$dn
-      if grep '^libraries:$' "$SPACECP_CONFFILE" >$dn
+      unzip -uo "$tmp/spacecp_libraries.zip" >$o
+      if grep '^libraries:$' "$SPACECP_CONFFILE" >$o
       then
-        if grep '^  version:' "$SPACECP_CONFFILE" >$dn
+        if grep '^  version:' "$SPACECP_CONFFILE" >$o
         then sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' \
-             "$SPACECP_CONFFILE" 2>$dn
-        else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$dn
+             "$SPACECP_CONFFILE" 2>$o
+        else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$o
         fi
       else
         printf '\n%s\n' "libraries:\n  version: $newlibver" >> "$SPACECP_CONFFILE"
@@ -362,8 +362,8 @@ install_spacecp () {
         [ -s "spacecp_libraries.zip" ] || (printf '\r[ERROR] \%s\n' \
                                            "Could not update the SpaceCP Libraries from '$newliburl'." && exit 1) \
                                        || return 0
-        unzip -uo "$tmp/spacecp_libraries.zip" >$dn
-        sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$dn
+        unzip -uo "$tmp/spacecp_libraries.zip" >$o
+        sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$o
       fi
     fi
   fi
@@ -436,7 +436,7 @@ update_spacecp () {
 #  for i in $(seq 1 $(echo "$artifacts_json" | json_parse))
 #  do
 #    artifact="$(echo "$artifact_json" | json_parse $i)"
-#    if expr "$(echo "$artifact" | json_parse channel)" : '^'"$spacecp_channel"'$' >$dn
+#    if expr "$(echo "$artifact" | json_parse channel)" : '^'"$spacecp_channel"'$' >$o
 #    then
 #      if [ "$(echo "$artifact" | json_parse createdAt)" -gt "$(date '+%s')" ]
 #      then
@@ -479,18 +479,18 @@ start_spacecp () {
   then
     printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
     curl -sLA "SpaceCP Script $SPACECP______" -X POST \
-    "$SPACECP_URL/api/serverStarted?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID" -o $dn
+    "$SPACECP_URL/api/serverStarted?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID" -o $o
   else printf '\r[ERROR]\n%s\n' "Could not start '$SPACECP_JAVABIN $SPACECP_JAVAARGS $SPACECP_RTKJAR $SPACECP_RTKARGS'\
  with '$SPACECP_STARTCOMMAND $SPACECP_STARTARGS'."
   fi
 }
 
 if [ -z "$SPACECP_APIKEY" ] && [ -s "$SPACECP_CONFFILE" ]
-then SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" 2>$dn \
+then SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" 2>$o \
                       | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p')
 fi
 if [ -z "$SPACECP_SERVID" ] && [ -s "$SPACECP_CONFFILE" ]
-then SPACECP_SERVID=$(cat "$SPACECP_CONFFILE" 2>$dn \
+then SPACECP_SERVID=$(cat "$SPACECP_CONFFILE" 2>$o \
                       | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  serverid: \([a-fA-F0-9]\+\)$/\1/p')
 fi
 if [ -z "$SPACECP_APIKEY" ]
@@ -506,7 +506,7 @@ then
 fi
 SPACECP_SERVID=$(urlencode "$SPACECP_SERVID")
 
-if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$dn
+if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$o
 then
   oldtmp=$(/bin/ls|grep -om1 '^spacecptmp_[0-9a-zA-Z]\{10\}$')
   printf '%s\n' "Old temporary folder found, please delete it first ($oldtmp)"
@@ -514,7 +514,7 @@ then
   "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
-  expr match "$yn" '^y.*' >$dn && yn=''
+  expr match "$yn" '^y.*' >$o && yn=''
   [ -z "$yn" ] && rm -r "$oldtmp"
   [ -n "$sourced" ] && return 1 || exit 1
 fi
@@ -525,7 +525,7 @@ then
   then # Already installed but couldn't successfully update
     printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
     [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-    expr match "$yn" '^y.*' >$dn && yn=''
+    expr match "$yn" '^y.*' >$o && yn=''
   fi
   if [ -z "$yn" ]
   then
@@ -538,7 +538,7 @@ then
 else
   printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
   [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-  expr match "$yn" '^y.*' >$dn && yn=''
+  expr match "$yn" '^y.*' >$o && yn=''
   if [ -z "$yn" ]
   then
     if install_spacecp
