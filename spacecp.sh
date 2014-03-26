@@ -1,30 +1,29 @@
 #!/bin/sh
-
+set -x
 # Dem keys!!
 SPACECP_APIKEY=""
-SPACECP_SERVID=""
 # Mmh more tasty variables...
-SPACECP_URL="http://spacecp.net"
+SPACECP_SERVID=""
 # If you haven't guessed already, I'm going to declare all the important variables here
-SPACECP_SERVJAR="craftbukkit.jar"
+SPACECP_URL="http://spacecp.net"
 # Yes, yes, variables, good, good
-SPACECP_PORT=25566
+SPACECP_SERVJAR="craftbukkit.jar"
 # There are a bunch more...
 SPACECP_CONFFILE="SpaceCP/config.yml"
 # Yup, and more...
-SPACECP_SERVAPI="$SPACECP_URL/api/server"
-# ...
 SPACECP_RTKJAR="remotetoolkit.jar"
-# soo...
+# ...
 SPACECP_SMJAR="toolkit/modules/spacemodule.jar"
-# glaring display last night, eh?
+# soo...
 SPACECP_RPJAR="plugins/rtkplugin.jar"
-# well fuck you than, if you're not gonna talk you might as well just go UGH
+# glaring display last night, eh?
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
+# well fuck you than, if you're not gonna talk you might as well just go UGH
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
-[ "$_" == "$0" ] && sourced=1
+[ "$_" != "$0" ] || sourced=1
 ___=""
+____=""
 _____=""
 # Change the following two variables to use a custom start command
 # IMPORTANT: Arguments must be in a string!
@@ -60,9 +59,6 @@ SPACECP_JAVAARGS="-Djava.library.path=./libs/ -jar"
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
 dn='/dev/null'
-
-# UUUHM plz dont change dis 1 kthxX
-OPTIND=1
 
 show_help () {
   printf '%s\n' "wow it's a fucking help"; # TODO help stuff goes here I guess...
@@ -150,101 +146,82 @@ json_parse () {
   return 1
 }
 
-## CAUTION
-## Shitty-ass arguments handling incoming!!
-## CAUTION
-while getopts "h?yuIr:c:k:a:j:p:i:" opt
-do
-  case "$opt" in
-  h|\?) show_help; [ -n "$sourced" ] && return 0 || exit 0;;
-  y) ultima_yes=1;;
-  u) force_update=1;;
-  I) force_update=2;;
-  r) if [ -s "$OPTARG" ]
-     then SPACECP_RTKJAR=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid RTK jar."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  c) if [ -s "$OPTARG" ]
-     then SPACECP_CONFFILE=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid configuration file."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  k) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$OPTARG' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  a) SPACECP_SERVAPI=$OPTARG;;
-  j) if [ -s "$OPTARG" ]
-     then SPACECP_SERVJAR="$OPTARG"
-     else printf '%s\n' "'$OPTARG' is not a valid server jar/file."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  p) if expr match "$OPTARG" '^[0-9]\+$' >$dn && [ "$OPTARG" -le 65535 -a "$OPTARG" -ge 1 ]
-     then SPACECP_PORT="$OPTARG"
-     else printf '%s\n' "'$OPTARG' is not a valid port number."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  i) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_SERVID=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$OPTARG' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  esac
-done
-shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
-_____='--etc=lol'
-for arg in "$@"
+_____=$(printf '\x2d\x2d\x65\x74\x63')
+____=$(printf '\x6c\x6f\x6c')
+___='\x75\x72\x20\x61\x20\x66\x67\x74'
+while [ -n "$1" ]
 do
-  ___='ur a fgt'
-  args=$(expr "$arg" : '[^=]\+=\(.*\)')
-  case "$arg" in
-  --help)
+  case "$1" in
+    --*=*)
+      par=$(expr "$1" : '^\([^=]\+\)=.*')
+      arg=$(expr "$1" : '^[^=]\+=\(.*\)')
+      ;;
+    --*)
+      par="$1"
+      arg="$2"
+      ;;
+    -*)
+      par="$1"
+      arg="$2"
+      ;;
+    *)
+      printf '%s\n' "Invalid argument '$1'"
+      [ -n "$sourced" ] && return 1 || exit 1
+      ;;
+  esac
+
+  case "$par" in
+  --help|-h|-\?)
     show_help
     [ -n "$sourced" ] && return 0 || exit 0
     ;;
-  --always-yes) ultima_yes=1;;
-  --update) force_update=1;;
-  --install) force_update=2;;
-  --server-api=*) SPACECP_SERVAPI="$args";;
-  --rtk-jar=*)
-    if [ $force_update -ne 2 -a -s "$args" ]
-    then SPACECP_RTKJAR="$args"
+  --always-yes|-y) ultima_yes=1;;
+  --update|-U) force_update=1;;
+  --install|-I) force_update=2;;
+  --url|-u) SPACECP_URL="$arg"; shift;;
+  --rtk-jar|-r)
+    if [ $force_update -ne 2 -a -s "$arg" ]
+    then SPACECP_RTKJAR="$arg"
     else
-      printf '%s\n' "'$args' is not a valid RTK jar."
+      printf '%s\n' "'$arg' is not a valid RTK jar."
       [ -n "$sourced" ] && return 1 || exit 1
     fi
-    ;;
-  --config=*)
-    if [ $force_update -ne 2 -a -s "$args" ]
-    then SPACECP_CONFFILE="$args"
+    shift;;
+  --config|-c)
+    if [ $force_update -ne 2 -a -s "$arg" ]
+    then SPACECP_CONFFILE="$arg"
     else
-      printf '%s\n' "'$args' is not a valid configuration file."
+      printf '%s\n' "'$arg' is not a valid configuration file."
       [ -n "$sourced" ] && return 1 || exit 1
     fi
-    ;;
-  --api-key=*) if expr match "$args" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$args' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  --server-id=*) if expr match "$args" '^[0-9a-fA-F]\+$' >$dn
-     then SPACECP_SERVID=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$args' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  --server-jar=*)
-    if [ $force_update -ne 2 -a -s "$args" ]
-    then SPACECP_SERVJAR="$args"
+    shift;;
+  --api-key|-k) if expr match "$arg" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+     else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
+     fi
+     shift;;
+  --server-id|-i) if expr match "$arg" '^[0-9a-fA-F]\+$' >$dn
+     then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+     else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
+     fi
+     shift;;
+  --server-jar|-j)
+    if [ $force_update -ne 2 -a -s "$arg" ]
+    then SPACECP_SERVJAR="$arg"
     else
-      printf '%s\n' "'$args' is not a valid server jar/file."
+      printf '%s\n' "'$arg' is not a valid server jar/file."
       [ -n "$sourced" ] && return 1 || exit 1
     fi
+    shift;;
+  $_____) if [ "$arg" == "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
+  *)
+    printf '%s\n' "Invalid argument '$1'"
+    [ -n "$sourced" ] && return 1 || exit 1
     ;;
-  --port=*)
-    if expr match "$args" '^[0-9]\+$' >$dn && [ "$args" -le 65535 -a "$args" -ge 1 ]
-    then SPACECP_PORT="$args"
-    else
-      printf '%s\n' "'$args' is not a valid port number."
-      [ -n "$sourced" ] && return 1 || exit 1
-    fi
-    ;;
-  "$_____") __; [ -n "$sourced" ] && return 1 || exit 1;;
   esac
+
+  shift
 done
 
 install_spacecp () {
@@ -260,8 +237,8 @@ install_spacecp () {
   printf '%s' "[     ] Getting configuration..."
   curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_conf.zip" --create-dirs \
   "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID"
-  [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' \
-    "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1) || return 1
+  [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under\
+ '$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID'." && exit 1) || return 1
   unzip -uo "$tmp/spacecp_conf.zip" >$dn
   [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1) \
                              || return 1
@@ -345,7 +322,7 @@ install_spacecp () {
 
   printf '%s' "[     ] SpaceCP Libraries..."
   libver=$(cat "$SPACECP_CONFFILE" 2>/dev/null | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
-  libjson=$(curl -sLA "SpaceCP Script $SPACECP_____" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
+  libjson=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
   newliburl=$(printf '%s' "$libjson" \
               | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
               | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
@@ -369,7 +346,7 @@ install_spacecp () {
         else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$dn
         fi
       else
-        printf '%s\n' "libraries:\n  version: $newlibver" >> "$SPACECP_CONFFILE"
+        printf '\n%s\n' "libraries:\n  version: $newlibver" >> "$SPACECP_CONFFILE"
       fi
     else
       printf '\r[ERROR] \n%s\n' "Could not fetch the SpaceCP Libraries from SpaceDL under\
@@ -508,8 +485,13 @@ start_spacecp () {
   fi
 }
 
-if [ -s "$SPACECP_CONFFILE" ]
-then SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-zA-Z0-9]\+\)/\1/p')
+if [ -z "$SPACECP_APIKEY" ] && [ -s "$SPACECP_CONFFILE" ]
+then SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" 2>$dn \
+                      | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p')
+fi
+if [ -z "$SPACECP_SERVID" ] && [ -s "$SPACECP_CONFFILE" ]
+then SPACECP_SERVID=$(cat "$SPACECP_CONFFILE" 2>$dn \
+                      | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  serverid: \([a-fA-F0-9]\+\)$/\1/p')
 fi
 if [ -z "$SPACECP_APIKEY" ]
 then
