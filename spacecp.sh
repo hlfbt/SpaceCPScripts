@@ -13,9 +13,7 @@ SPACECP_CONFFILE="SpaceCP/config.yml"
 # Yup, and more...
 SPACECP_SERVAPI="$SPACECP_URL/api/server"
 # ...
-SPACECP_PROPFILE="SpaceCP/properties"
-# ((uh this is kinda awkward, is he gonna start talking or should I...))
-SPACECP_RTKJAR="rtk.jar"
+SPACECP_RTKJAR="remotetoolkit.jar"
 # soo...
 SPACECP_SMJAR="toolkit/modules/spacemodule.jar"
 # glaring display last night, eh?
@@ -24,7 +22,7 @@ SPACECP_RPJAR="plugins/rtkplugin.jar"
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
-[ "$_" != "$0" ] && sourced=1
+[ "$_" == "$0" ] && sourced=1
 ___=""
 _____=""
 # Change the following two variables to use a custom start command
@@ -152,7 +150,7 @@ json_parse () {
 ## CAUTION
 ## Shitty-ass arguments handling incoming!!
 ## CAUTION
-while getopts "h?yuir:c:C:k:a:j:p:d:" opt
+while getopts "h?yuir:c:k:a:j:p:d:" opt
 do
   case "$opt" in
   h|\?) show_help; [ -n "$sourced" ] && return 0 || exit 0;;
@@ -166,10 +164,6 @@ do
   c) if [ -s "$OPTARG" ]
      then SPACECP_CONFFILE=$OPTARG
      else printf '%s\n' "'$OPTARG' is not a valid configuration file."; [ -n "$sourced" ] && return 1 || exit 1
-     fi;;
-  C) if [ -s "$OPTARG" ]
-     then SPACECP_PROPFILE=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid properties file."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   k) SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]');;
   a) SPACECP_SERVAPI=$OPTARG;;
@@ -219,14 +213,6 @@ do
       [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
-  --properties=*)
-    if [ $force_update -ne 2 -a -s "$args" ]
-    then SPACECP_PROPFILE="$args"
-    else
-      printf '%s\n' "'$args' is not a valid properties file."
-      [ -n "$sourced" ] && return 1 || exit 1
-    fi
-    ;;
   --api-key=*) SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]');;
   --server-jar=*)
     if [ $force_update -ne 2 -a -s "$args" ]
@@ -255,13 +241,12 @@ install_spacecp () {
   ##  script wrongly or has some faulty values at first.
 
 
-  tmp=$(mktemp -d -t 'spacecptmp_XXXXXXXXXX')
-  mkdir "$tmp"
+  tmp=$(mktemp -d --tmpdir=. 'spacecptmp_XXXXXXXXXX')
 
 
   printf '%s' "[     ] Getting configuration..."
-  curl -sLA --create-dirs "SpaceCP Script $SPACECP______" \
-  "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID" -o "$tmp/spacecp_conf.zip"
+  curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_conf.zip" --create-dirs \
+  "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID"
   [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' \
     "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1) || return 1
   unzip -uo "$tmp/spacecp_conf.zip" >$dn
@@ -270,16 +255,6 @@ install_spacecp () {
 #  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
 #  [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_CONFFILE'." && exit 1) \
 #                             || return 1
-  printf '\r%s\n' "[OK]    "
-
-
-  printf '%s' "[     ] Getting properties..."
-  spacecp_prop=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_SERVAPI/$SPACECP_APIKEY/properties")
-  [ -z "$spacecp_prop" ] && printf '\r[ERROR] \n%s\n' "Could not fetch the properties under '$SPACECP_SERVAPI'." \
-                         && return 1
-  [ -s "$SPACECP_PROPFILE" ] || echo "$spacecp_prop" > "$SPACECP_PROPFILE"
-  [ -s "$SPACECP_PROPFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_PROPFILE'." && exit 1) \
-                             || return 1
   printf '\r%s\n' "[OK]    "
 
 
@@ -295,7 +270,7 @@ install_spacecp () {
       [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
         "Could not find any recommended build for '$SPACECP_SERVJAR' from SpaceGDN under\
  '$SPACECP_GDNAPIURL/jar/3/channel/5/build?sort=build.build.desc'." && return 1
-      curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_SERVJAR"
+      curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_SERVJAR" --create-dirs "$dlurl"
       [ -s "$SPACECP_SERVJAR" ] || (printf '\r[ERROR] \n%s\n' \
         "Could not fetch the server jar '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1) || return 1
     else
@@ -316,7 +291,7 @@ install_spacecp () {
     [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
       "Could not find any recommended build for '$SPACECP_RTKJAR' from SpaceDL under\
  '$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec'." && return 1
-    curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_RTKJAR"
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_RTKJAR" --create-dirs "$dlurl"
     [ -s "$SPACECP_RTKJAR" ] || (printf '\r[ERROR] \n%s\n' \
       "Could not fetch the Remotetoolkit jar '$(basename "$SPACECP_RTKJAR")' from '$dlurl'." && exit 1) || return 1
   fi
@@ -332,7 +307,7 @@ install_spacecp () {
     [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
       "Could not find any recommended build for '$SPACECP_RPJAR' from SpaceDL under\
  '$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec'." && return 1
-    curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_RPJAR"
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_RPJAR" --create-dirs "$dlurl"
     [ -s "$SPACECP_RPJAR" ] || (printf '\r[ERROR] \n%s\n' \
       "Could not fetch the RTKplugin jar '$(basename "$SPACECP_RPJAR")' from '$dlurl'." && exit 1) || return 1
   fi
@@ -348,7 +323,7 @@ install_spacecp () {
     [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
       "Could not find any recommended build for '$SPACECP_SMJAR' from SpaceDL under\
  '$SPACECP_DLAPIURL/software/spacecp_module?channel=rec'." && return 1
-    curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$dlurl" -o "$SPACECP_SMJAR"
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_SMJAR" --create-dirs "$dlurl"
     [ -s "$SPACECP_SMJAR" ] || (printf '\r[ERROR] \n%s\n' \
       "Could not fetch the SpaceModule jar '$(basename "$SPACECP_SMJAR")' from '$dlurl'." && exit 1) || return 1
   fi
@@ -356,19 +331,19 @@ install_spacecp () {
 
 
   printf '%s' "[     ] SpaceCP Libraries..."
-  libver=$(cat "$SPACECP_CONFFILE" | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
+  libver=$(cat "$SPACECP_CONFFILE" 2>/dev/null | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
   libjson=$(curl -sLA "SpaceCP Script $SPACECP_____" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
   newliburl=$(echo "$libjson" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-  newlibver=$(echo "$libjson" | grep -om1 '"createdAt"[ ]*:[ ]*"[^"]*"' \
-              | head -n1 | sed 's/"createdAt"[ ]*:[ ]*"\([^"]*\)"/\1/')
+  newlibver=$(echo "$libjson" | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
+              | head -n1 | sed 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/')
   if [ -z "$libver" ]
   then
     if [ -n "$newliburl" ] && [ -n "$newlibver" ]
     then
-      curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$newliburl" -o "$tmp/spacecp_libraries.zip"
-      [ -s "spacecp_libraries.zip" ] || (printf '\r[ERROR] \%s\n' \
-                                         "Could not fetch the SpaceCP Libraries from '$newliburl'." && exit 1) \
-                                     || return 1
+      curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
+      [ -s "$tmp/spacecp_libraries.zip" ] || (printf '\r[ERROR] %s\n' \
+                                              "Could not fetch the SpaceCP Libraries from '$newliburl'." \
+                                              && exit 1) || return 1
       unzip -uo "$tmp/spacecp_libraries.zip" >$dn
     else
       printf '\r[ERROR] \n%s\n' "Could not fetch the SpaceCP Libraries from SpaceDL under\
@@ -380,7 +355,7 @@ install_spacecp () {
     then
       if [ "$libver" -lt "$newlibver" ]
       then
-        curl -sLA --create-dirs "SpaceCP Script $SPACECP_____" "$newliburl" -o "$tmp/spacecp_libraries.zip"
+        curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
         [ -s "spacecp_libraries.zip" ] || (printf '\r[ERROR] \%s\n' \
                                            "Could not update the SpaceCP Libraries from '$newliburl'." && exit 1) \
                                        || return 0
@@ -469,7 +444,7 @@ update_spacecp () {
 #  if [ -n "$update_url" ]
 #  then
 #    hash="$(echo "$artifact" | json_parse hash)"
-#    curl -sLA --create-dirs "SpaceCP Script $SPACECP______" "$update_url" -o "$SPACECP_SMJAR"
+#    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_SMJAR" --create-dirs "$update_url"
 #    if [ "$hash" = "$(md5sum "$SPACECP_SMJAR" | cut -d' ' -f1)" ]
 #    then
 #      ##
@@ -512,7 +487,20 @@ then
 fi
 SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
 
-if [ -s "$SPACECP_CONFFILE" ]
+if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$dn
+then
+  oldtmp=$(/bin/ls|grep -om1 '^spacecptmp_[0-9a-zA-Z]\{10\}$')
+  printf '%s\n' "Old temporary folder found, please delete it first ($oldtmp)"
+  printf '%s\n' \
+  "Delete all newly installed files or use -i/--install to force an installation if the last was unsuccesfull."
+  printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
+  read yn
+  expr match "$yn" '^y.*' >$dn && yn=''
+  [ -z "$yn" ] && rm -r "$oldtmp"
+  [ -n "$sourced" ] && return 1 || exit 1
+fi
+
+if [ -s "$SPACECP_CONFFILE" ] && [ "$force_update" -ne 2 ]
 then
   if ! update_spacecp
   then # Already installed but couldn't successfully update
