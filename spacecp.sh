@@ -2,6 +2,7 @@
 
 # Dem keys!!
 SPACECP_APIKEY=""
+SPACECP_SERVID=""
 # Mmh more tasty variables...
 SPACECP_URL="http://spacecp.net"
 # If you haven't guessed already, I'm going to declare all the important variables here
@@ -360,6 +361,16 @@ install_spacecp () {
                                               "Could not fetch the SpaceCP Libraries from '$newliburl'." \
                                               && exit 1) || return 1
       unzip -uo "$tmp/spacecp_libraries.zip" >$dn
+      if grep '^libraries:$' "$SPACECP_CONFFILE" >$dn
+      then
+        if grep '^  version:' "$SPACECP_CONFFILE" >$dn
+        then sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' \
+             "$SPACECP_CONFFILE" 2>$dn
+        else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$dn
+        fi
+      else
+        printf '%s\n' "libraries:\n  version: $newlibver" >> "$SPACECP_CONFFILE"
+      fi
     else
       printf '\r[ERROR] \n%s\n' "Could not fetch the SpaceCP Libraries from SpaceDL under\
  '$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec'."
@@ -375,6 +386,7 @@ install_spacecp () {
                                            "Could not update the SpaceCP Libraries from '$newliburl'." && exit 1) \
                                        || return 0
         unzip -uo "$tmp/spacecp_libraries.zip" >$dn
+        sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$dn
       fi
     fi
   fi
