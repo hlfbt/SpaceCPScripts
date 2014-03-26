@@ -27,18 +27,18 @@ SPACECP______="0.$(((5*2*10)/(4*5*5)))"
 ___=""
 _____=""
 # Change the following two variables to use a custom start command
-# IMPORTANT: Arguments must be in an array!
+# IMPORTANT: Arguments must be in a string!
 SPACECP_STARTCOMMAND="start-stop-daemon"
-SPACECP_STARTARGS=(--start --pidfile 'spacecp.pid' --chdir "$(pwd)" --background --make-pidfile --exec)
+SPACECP_STARTARGS="--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
 # Also comment out those if blocks to not make it overwrite it accidentally
 if command -v tmux >/dev/null 2>&1
-then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTARGS=(new-session -d -s 'SpaceCP')
+then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTARGS="new-session -d -s 'SpaceCP'"
 else if command -v screen >/dev/null 2>&1
-then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTARGS=(-dmLS 'SpaceCP')
+then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTARGS="-dmLS 'SpaceCP'"
 fi; fi
 # Variable for custom args passed to RTK
-# IMPORTANT: Arguments must be in an array!
-SPACECP_RTKARGS=()
+# IMPORTANT: Arguments must be in a string!
+SPACECP_RTKARGS=""
 
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
@@ -237,9 +237,11 @@ install_spacecp () {
   ## Checks for already existing files to not make the user redownload everything over an over again if he calls the
   ##  script wrongly or has some faulty values at first.
   printf '%s' "[     ] Getting configuration..."
-  curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID" -o "spacecp_conf.zip"
-  [ -e "spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1)
-  unzip "spacecp_conf.zip" >$dn
+  curl -sLA "SpaceCP Script $SPACECP______" \
+  "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVERID" -o "spacecp_conf.zip"
+  [ -e "spacecp_conf.zip" ] || (printf '\r[ERROR] \n%s\n' \
+    "Could not fetch the configuration under '$SPACECP_SERVAPI'." && exit 1)
+  unzip -uo "spacecp_conf.zip" >$dn
   rm "spacecp_conf.zip" >$dn
   [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1)
 #  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
@@ -248,7 +250,7 @@ install_spacecp () {
   printf '%s' "[     ] Getting properties..."
   spacecp_prop=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_SERVAPI/$SPACECP_APIKEY/properties")
   [ -z "$spacecp_prop" ] && (printf '\r[ERROR] \n%s\n' "Could not fetch the properties under '$SPACECP_SERVAPI'.")
-  echo "$spacecp_prop" > "$SPACECP_PROPFILE"
+  [ -s "$SPACECP_PROPFILE" ] || echo "$spacecp_prop" > "$SPACECP_PROPFILE"
   [ -s "$SPACECP_PROPFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_PROPFILE'." && exit 1)
   printf '\r%s\n' "[OK]    "
   printf '%s' "[     ] $SPACECP_SERVJAR..."
@@ -319,6 +321,14 @@ install_spacecp () {
       && exit 1)
   fi
   printf '\r%s\n' "[OK]    "
+  printf '%s' "[     ] SpaceCP Libraries..."
+  libver=$(cat "$SPACECP_CONFFILE" | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
+  if [ -z "$libver" ]
+  then
+    ## CONF DOESN'T EXIST
+  else
+    ## CONF EXISTS
+  fi
 }
 
 update_spacecp () {
@@ -414,9 +424,9 @@ start_spacecp () {
   ## It is EXTREMELY important for the starting command to automatically fork itself into the background,
   ##  or else we can't correctly check if it started to begin with, and more importantly,
   ##  cannot send a POST request to the SpaceCP servers to notify them that the server started!
-  if "$SPACECP_STARTCOMMAND" "${SPACECP_STARTARGS[@]}" "$SPACECP_RTKJAR" "${SPACECP_RTKARGS[@]}"
+  if eval "$SPACECP_STARTCOMMAND" "$SPACECP_STARTARGS" "$SPACECP_RTKJAR" "$SPACECP_RTKARGS"
   then printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
-  else printf '\r[ERROR]\n%s\n' "Could not start '$SPACECP_RTKJAR' with '$SPACECP_STARTCOMMAND'."
+  else printf '\r[ERROR]\n%s\n' "Could not start '$SPACECP_RTKJAR $SPACECP_RTKARGS' with '$SPACECP_STARTCOMMAND $SPACECP_STARTARGS'."
   fi
 }
 
