@@ -1,5 +1,5 @@
 #!/bin/sh
-set -x
+
 # Dem keys!!
 SPACECP_APIKEY=""
 # Mmh more tasty variables...
@@ -58,7 +58,7 @@ SPACECP_JAVAARGS="-Djava.library.path=./libs/ -jar"
 
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
-dn='/dev/null'
+o='/dev/null'
 
 show_help () {
   printf '%s\n' "wow it's a fucking help"; # TODO help stuff goes here I guess...
