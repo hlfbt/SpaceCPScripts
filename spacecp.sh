@@ -24,6 +24,7 @@ SPACECP_RPJAR="plugins/rtkplugin.jar"
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
+[ "$_" != "$0" ] && sourced=1
 ___=""
 _____=""
 # Change the following two variables to use a custom start command
@@ -154,35 +155,35 @@ json_parse () {
 while getopts "h?yuir:c:C:k:a:j:p:d:" opt
 do
   case "$opt" in
-  h|\?) show_help; exit 0;;
+  h|\?) show_help; [ -n "$sourced" ] && return 0 || exit 0;;
   y) ultima_yes=1;;
   u) force_update=1;;
   i) force_update=2;;
   r) if [ -s "$OPTARG" ]
      then SPACECP_RTKJAR=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid RTK jar."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid RTK jar."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   c) if [ -s "$OPTARG" ]
      then SPACECP_CONFFILE=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid configuration file."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid configuration file."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   C) if [ -s "$OPTARG" ]
      then SPACECP_PROPFILE=$OPTARG
-     else printf '%s\n' "'$OPTARG' is not a valid properties file."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid properties file."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   k) SPACECP_APIKEY=$(printf '%s' "$OPTARG" | tr '[:upper:]' '[:lower:]');;
   a) SPACECP_SERVAPI=$OPTARG;;
   j) if [ -s "$OPTARG" ]
      then SPACECP_SERVJAR="$OPTARG"
-     else printf '%s\n' "'$OPTARG' is not a valid server jar/file."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid server jar/file."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   p) if expr match "$OPTARG" '^[0-9]\+$' >$dn && [ "$OPTARG" -le 65535 -a "$OPTARG" -ge 1 ]
      then SPACECP_PORT="$OPTARG"
-     else printf '%s\n' "'$OPTARG' is not a valid port number."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid port number."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   d) if expr match "$OPTARG" '^[0-9a-fA-F]\+$' >$dn
      then SPACECP_SERVERID=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
-     else printf '%s\n' "'$OPTARG' is not a valid server id."; exit 1
+     else printf '%s\n' "'$OPTARG' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
      fi;;
   esac
 done
@@ -196,7 +197,7 @@ do
   case "$arg" in
   --help)
     show_help
-    exit 0
+    [ -n "$sourced" ] && return 0 || exit 0
     ;;
   --always-yes) ultima_yes=1;;
   --update) force_update=1;;
@@ -207,7 +208,7 @@ do
     then SPACECP_RTKJAR="$args"
     else
       printf '%s\n' "'$args' is not a valid RTK jar."
-      exit 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
   --config=*)
@@ -215,7 +216,7 @@ do
     then SPACECP_CONFFILE="$args"
     else
       printf '%s\n' "'$args' is not a valid configuration file."
-      exit 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
   --properties=*)
@@ -223,7 +224,7 @@ do
     then SPACECP_PROPFILE="$args"
     else
       printf '%s\n' "'$args' is not a valid properties file."
-      exit 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
   --api-key=*) SPACECP_APIKEY=$(printf '%s' "$args" | tr '[:upper:]' '[:lower:]');;
@@ -232,7 +233,7 @@ do
     then SPACECP_SERVJAR="$args"
     else
       printf '%s\n' "'$args' is not a valid server jar/file."
-      exit 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
   --port=*)
@@ -240,10 +241,10 @@ do
     then SPACECP_PORT="$args"
     else
       printf '%s\n' "'$args' is not a valid port number."
-      exit 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
     ;;
-  "$_____") __ && exit 0;;
+  "$_____") __; [ -n "$sourced" ] && return 1 || exit 1;;
   esac
 done
 
@@ -507,7 +508,7 @@ fi
 if [ -z "$SPACECP_APIKEY" ]
 then
   printf '%s\n' "No API Key, exiting."
-  return 1
+  [ -n "$sourced" ] && return 1 || exit 1
 fi
 SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
 
@@ -524,7 +525,7 @@ then
     if ! start_spacecp
     then # Already installed but couldn't successfully start
       printf '%s\n' "Could not start SpaceCP."
-      return 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
   fi
 else
@@ -539,13 +540,13 @@ else
       if ! start_spacecp
       then # Successfully installed but not successfully started
         printf '%s\n' "Could not start SpaceCP."
-        return 1
+        [ -n "$sourced" ] && return 1 || exit 1
       else # Successfully installed and started
         curl -sLA "SpaceCP Script $SPACECP______" -X POST "$SPACECP_SERVAPI/$SPACECP_APIKEY/start"
       fi
     else # Not successfully installed
       printf '%s\n' "Could not install SpaceCP."
-      return 1
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
   fi
 fi
