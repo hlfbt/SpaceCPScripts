@@ -147,23 +147,26 @@ json_parse () {
 }
 
 [ "$1" = "--" ] && shift
-_____=$(printf '\x2d\x2d\x65\x74\x63')
-____=$(printf '\x6c\x6f\x6c')
-___='\x75\x72\x20\x61\x20\x66\x67\x74'
+_____=$(awk 'BEGIN{printf "\x2d\x2d\x65\x74\x63"}')
+____=$(awk 'BEGIN{printf "\x6c\x6f\x6c"}')
+___=$(awk 'BEGIN{printf "\x75\x72\x20\x61\x20\x66\x67\x74"}')
 while [ -n "$1" ]
 do
   case "$1" in
     --*=*)
       par=$(expr "$1" : '^\([^=]\+\)=.*')
       arg=$(expr "$1" : '^[^=]\+=\(.*\)')
+      ds=0
       ;;
     --*)
       par="$1"
       arg="$2"
+      ds=1
       ;;
     -*)
       par="$1"
       arg="$2"
+      ds=1
       ;;
     *)
       printf '%s\n' "Invalid argument '$1'"
@@ -179,7 +182,7 @@ do
     --always-yes|-y) ultima_yes=1;;
     --update|-U) force_update=1;;
     --install|-I) force_update=2;;
-    --url|-u) SPACECP_URL="$arg"; shift;;
+    --url|-u) SPACECP_URL="$arg"; [ "$ds" -eq 1 ] && shift;;
     --rtk-jar|-r)
       if [ $force_update -ne 2 -a -s "$arg" ]
       then SPACECP_RTKJAR="$arg"
@@ -187,7 +190,7 @@ do
         printf '%s\n' "'$arg' is not a valid RTK jar."
         [ -n "$sourced" ] && return 1 || exit 1
       fi
-      shift;;
+      [ "$ds" -eq 1 ] && shift;;
     --config|-c)
       if [ $force_update -ne 2 -a -s "$arg" ]
       then SPACECP_CONFFILE="$arg"
@@ -195,17 +198,17 @@ do
         printf '%s\n' "'$arg' is not a valid configuration file."
         [ -n "$sourced" ] && return 1 || exit 1
       fi
-      shift;;
+      [ "$ds" -eq 1 ] && shift;;
     --api-key|-k) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
        then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
        fi
-       shift;;
+       [ "$ds" -eq 1 ] && shift;;
     --server-id|-i) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
        then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
        fi
-       shift;;
+       [ "$ds" -eq 1 ] && shift;;
     --server-jar|-j)
       if [ $force_update -ne 2 -a -s "$arg" ]
       then SPACECP_SERVJAR="$arg"
@@ -213,8 +216,8 @@ do
         printf '%s\n' "'$arg' is not a valid server jar/file."
         [ -n "$sourced" ] && return 1 || exit 1
       fi
-      shift;;
-    $_____) if [ "$arg" == "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
+      [ "$ds" -eq 1 ] && shift;;
+    $_____) if [ "$arg" = "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
     *)
       printf '%s\n' "Invalid argument '$1'"
       [ -n "$sourced" ] && return 1 || exit 1
