@@ -252,7 +252,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_SERVJAR" ]
   then
     ## UGLY HARDCODED STUFF
-    if printf "$SPACECP_SERVJAR"|awk '{if(!match($1,"craftbukkit\.jar$")){exit 2}}' >$o
+    if printf "$SPACECP_SERVJAR"|awk '{if(!match($1,"craftbukkit.jar$")){exit 2}}' >$o
     then
       dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
       "$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -514,7 +514,7 @@ then
   "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
-  yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
+  yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
   [ -z "$yn" ] && rm -r "$oldtmp"
   [ -n "$sourced" ] && return 1 || exit 1
 fi
@@ -525,7 +525,7 @@ then
   then # Already installed but couldn't successfully update
     printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
     [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
-    yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
+    yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
   fi
   if [ -z "$yn" ]
   then
@@ -538,7 +538,7 @@ then
 else
   printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
   [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
-  yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
+  yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
   if [ -z "$yn" ]
   then
     if install_spacecp
