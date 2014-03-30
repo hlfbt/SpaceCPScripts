@@ -63,9 +63,6 @@ o='/dev/null'
 show_help () {
   printf '%s\n' "wow it's a fucking help"; # TODO help stuff goes here I guess...
 }
-urlencode () {
-  perl -MURI::Escape -e 'print uri_escape($ARGV[0]);' "$@"
-}
 __ () {
   printf '%s\n' "$___";
 }
@@ -501,13 +498,13 @@ then
   printf '%s\n' "No API Key, exiting."
   [ -n "$sourced" ] && return 1 || exit 1
 fi
-SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
+#SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
 if [ -z "$SPACECP_SERVID" ]
 then
   printf '%s\n' "No Server ID, exiting."
   [ -n "$sourced" ] && return 1 || exit 1
 fi
-SPACECP_SERVID=$(urlencode "$SPACECP_SERVID")
+#SPACECP_SERVID=$(urlencode "$SPACECP_SERVID")
 
 if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$o
 then
