@@ -151,8 +151,8 @@ while [ -n "$1" ]
 do
   case "$1" in
     --*=*)
-      par=$(expr "$1" : '^\([^=]\+\)=.*')
-      arg=$(expr "$1" : '^[^=]\+=\(.*\)')
+      par=$(echo "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
+      arg=$(echo "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
       ds=0
       ;;
     --*)
@@ -196,12 +196,12 @@ do
         [ -n "$sourced" ] && return 1 || exit 1
       fi
       [ "$ds" -eq 1 ] && shift;;
-    --api-key|-k) if expr "$arg" : '^[0-9a-fA-F]\+$' >$o
+    --api-key|-k) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
        fi
        [ "$ds" -eq 1 ] && shift;;
-    --server-id|-i) if expr "$arg" : '^[0-9a-fA-F]\+$' >$o
+    --server-id|-i) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
        fi
@@ -231,7 +231,7 @@ install_spacecp () {
   ##  script wrongly or has some faulty values at first.
 
 
-  tmp=$(mktemp -d --tmpdir=. 'spacecptmp_XXXXXXXXXX')
+  tmp=$(TMPDIR=$(pwd) mktemp -d 'spacecptmp_XXXXXXXXXX')
 
 
   printf '%s' "[     ] Getting configuration..."
@@ -252,7 +252,7 @@ install_spacecp () {
   if ! [ -s "$SPACECP_SERVJAR" ]
   then
     ## UGLY HARDCODED STUFF
-    if expr "$SPACECP_SERVJAR" : "craftbukkit\.jar$" >$o
+    if printf "$SPACECP_SERVJAR"|awk '{if(!match($1,"craftbukkit\.jar$")){exit 2}}' >$o
     then
       dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
       "$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -514,7 +514,7 @@ then
   "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
-  expr "$yn" : '^y.*' >$o && yn=''
+  yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
   [ -z "$yn" ] && rm -r "$oldtmp"
   [ -n "$sourced" ] && return 1 || exit 1
 fi
@@ -524,8 +524,8 @@ then
   if ! update_spacecp
   then # Already installed but couldn't successfully update
     printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
-    [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-    expr "$yn" : '^y.*' >$o && yn=''
+    [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
+    yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
   fi
   if [ -z "$yn" ]
   then
@@ -537,8 +537,8 @@ then
   fi
 else
   printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
-  [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-  expr "$yn" : '^y.*' >$o && yn=''
+  [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
+  yn=$(printf "$yn"|awk '{if(!match($1,"^y.*")){print no}}')
   if [ -z "$yn" ]
   then
     if install_spacecp
