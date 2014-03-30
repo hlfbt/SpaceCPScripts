@@ -196,12 +196,12 @@ do
         [ -n "$sourced" ] && return 1 || exit 1
       fi
       [ "$ds" -eq 1 ] && shift;;
-    --api-key|-k) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
+    --api-key|-k) if expr "$arg" : '^[0-9a-fA-F]\+$' >$o
        then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
        fi
        [ "$ds" -eq 1 ] && shift;;
-    --server-id|-i) if expr match "$arg" '^[0-9a-fA-F]\+$' >$o
+    --server-id|-i) if expr "$arg" : '^[0-9a-fA-F]\+$' >$o
        then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
        fi
@@ -514,7 +514,7 @@ then
   "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
-  expr match "$yn" '^y.*' >$o && yn=''
+  expr "$yn" : '^y.*' >$o && yn=''
   [ -z "$yn" ] && rm -r "$oldtmp"
   [ -n "$sourced" ] && return 1 || exit 1
 fi
@@ -525,7 +525,7 @@ then
   then # Already installed but couldn't successfully update
     printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
     [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-    expr match "$yn" '^y.*' >$o && yn=''
+    expr "$yn" : '^y.*' >$o && yn=''
   fi
   if [ -z "$yn" ]
   then
@@ -538,7 +538,7 @@ then
 else
   printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
   [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y' || read yn
-  expr match "$yn" '^y.*' >$o && yn=''
+  expr "$yn" : '^y.*' >$o && yn=''
   if [ -z "$yn" ]
   then
     if install_spacecp
