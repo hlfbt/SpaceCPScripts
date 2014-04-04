@@ -176,74 +176,134 @@ install_spacecp () {
   printf '\r%s\n' "[OK]    "
 
 
-  printf '%s' "[     ] $SPACECP_SERVJAR..."
-  if ([ -s "$SPACECP_SERVJAR" ] && ask "'$SPACECP_SERVKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_SERVJAR" ]
+  thisdl="$SPACECP_SERVJAR"
+  thisurl="$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc"
+  thisbase=$(basename "$thisdl")
+  printf '%s' "[     ] $thisdl..."
+  if ([ -s "$thisdl" ] && ask "'$thisdl' already exists. Overwrite?") || ! [ -s "$thisdl" ]
   then
-    ## UGLY HARDCODED STUFF
-    if printf "$SPACECP_SERVJAR"|awk '{if(!match($1,"craftbukkit.jar$")){exit 2}}' >$o
+    ## HARDCODED STUFF ;_;
+    if printf "$thisdl"|awk '{if(!match($1,"craftbukkit.jar$")){exit 2}}' >$o
     then
-      dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" \
-      "$SPACECP_GDNAPIURL/jar/2/channel/4/build?sort=build.build.desc" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-      | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-      [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
-        "Could not find any recommended build for '$SPACECP_SERVJAR' from SpaceGDN under\
- '$SPACECP_GDNAPIURL/jar/3/channel/5/build?sort=build.build.desc'." && return 1
-      curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_SERVJAR" --create-dirs "$dlurl"
-      [ -s "$SPACECP_SERVJAR" ] || (printf '\r[ERROR] \n%s\n' \
-        "Could not fetch the server jar '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1) || return 1
+      dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
+      dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
+              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
+      dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+               | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+      [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
+                                            "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                         && return 1
+      curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+      [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n%s\n' \
+                                  "Could not fetch '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1)
+                              || return 1
+      thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+      if [ "$thishash" = "$dlhash" ]
+      then mv "$tmp/$thisbase" "$thisdl"
+      else
+        printf '\t[ERROR] \n%s\n' "Wrong hash '$thishash', should be '$dlhash'."
+        return 1
+      fi
     else
-      printf '\r[ERROR] \n%s\n' "Could not find '$SPACECP_SERVJAR'. Please install it first."
+      printf '\r[ERROR] \n%s\n' "Could not find '$thisdl'. Please install it first."
       return 1
     fi
-    ## PHEW, IT'S OVER (FOR NOW)
   fi
   printf '\r%s\n' "[OK]    "
 
 
-  printf '%s' "[     ] $SPACECP_RTKJAR..."
-  if ([ -s "$SPACECP_RTKJAR" ] && ask "'$SPACECP_RTKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_RTKJAR" ]
+  thisdl="$SPACECP_RTKJAR"
+  thisurl="$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec"
+  thisbase=$(basename "$thisdl")
+  printf '%s' "[     ] $thisdl..."
+  if ([ -s "$thisdl" ] && ask "'$thisdl' already exists. Overwrite?") || ! [ -s "$thisdl" ]
   then
-    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-    [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
-      "Could not find any recommended build for '$SPACECP_RTKJAR' from SpaceDL under\
- '$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec'." && return 1
-    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_RTKJAR" --create-dirs "$dlurl"
-    [ -s "$SPACECP_RTKJAR" ] || (printf '\r[ERROR] \n%s\n' \
-      "Could not fetch the Remotetoolkit jar '$(basename "$SPACECP_RTKJAR")' from '$dlurl'." && exit 1) || return 1
+    dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
+    dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
+            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+    [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                       && return 1
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n%s\n' \
+                                "Could not fetch '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1)
+                            || return 1
+    thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+    if [ "$thishash" = "$dlhash" ]
+    then mv "$tmp/$thisbase" "$thisdl"
+    else
+      printf '\t[ERROR] \n%s\n' "Wrong hash '$thishash', should be '$dlhash'."
+      return 1
+    fi
+  else
+    printf '\r[ERROR] \n%s\n' "Could not find '$thisdl'. Please install it first."
+    return 1
   fi
   printf '\r%s\n' "[OK]    "
 
 
-  printf '%s' "[     ] $SPACECP_RPJAR..."
-  if ([ -s "$SPACECP_RPJAR" ] && ask "'$SPACECP_RPJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_RPJAR" ]
+  thisdl="$SPACECP_RPJAR"
+  thisurl="$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec"
+  thisbase=$(basename "$thisdl")
+  printf '%s' "[     ] $thisdl..."
+  if ([ -s "$thisdl" ] && ask "'$thisdl' already exists. Overwrite?") || ! [ -s "$thisdl" ]
   then
-    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-    [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
-      "Could not find any recommended build for '$SPACECP_RPJAR' from SpaceDL under\
- '$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec'." && return 1
-    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_RPJAR" --create-dirs "$dlurl"
-    [ -s "$SPACECP_RPJAR" ] || (printf '\r[ERROR] \n%s\n' \
-      "Could not fetch the RTKplugin jar '$(basename "$SPACECP_RPJAR")' from '$dlurl'." && exit 1) || return 1
+    dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
+    dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
+            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+    [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                       && return 1
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n%s\n' \
+                                "Could not fetch '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1)
+                            || return 1
+    thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+    if [ "$thishash" = "$dlhash" ]
+    then mv "$tmp/$thisbase" "$thisdl"
+    else
+      printf '\t[ERROR] \n%s\n' "Wrong hash '$thishash', should be '$dlhash'."
+      return 1
+    fi
+  else
+    printf '\r[ERROR] \n%s\n' "Could not find '$thisdl'. Please install it first."
+    return 1
   fi
   printf '\r%s\n' "[OK]    "
 
 
-  printf '%s' "[     ] $SPACECP_SMJAR..."
-  if ([ -s "$SPACECP_SMJAR" ] && ask "'$SPACECP_SMKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_MVJAR" ]
+  thisdl="$SPACECP_SMJAR"
+  thisurl="$SPACECP_DLAPIURL/software/spacecp_module?channel=rec"
+  thisbase=$(basename "$thisdl")
+  printf '%s' "[     ] $thisdl..."
+  if ([ -s "$thisdl" ] && ask "'$thisdl' already exists. Overwrite?") || ! [ -s "$thisdl" ]
   then
-    dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
-    "$SPACECP_DLAPIURL/software/spacecp_module?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-    | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
-    [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
-      "Could not find any recommended build for '$SPACECP_SMJAR' from SpaceDL under\
- '$SPACECP_DLAPIURL/software/spacecp_module?channel=rec'." && return 1
-    curl -sLA "SpaceCP Script $SPACECP______" -o "$SPACECP_SMJAR" --create-dirs "$dlurl"
-    [ -s "$SPACECP_SMJAR" ] || (printf '\r[ERROR] \n%s\n' \
-      "Could not fetch the SpaceModule jar '$(basename "$SPACECP_SMJAR")' from '$dlurl'." && exit 1) || return 1
+    dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
+    dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
+            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+    [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                       && return 1
+    curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n%s\n' \
+                                "Could not fetch '$(basename "$SPACECP_SERVJAR")' from '$dlurl'." && exit 1)
+                            || return 1
+    thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+    if [ "$thishash" = "$dlhash" ]
+    then mv "$tmp/$thisbase" "$thisdl"
+    else
+      printf '\t[ERROR] \n%s\n' "Wrong hash '$thishash', should be '$dlhash'."
+      return 1
+    fi
+  else
+    printf '\r[ERROR] \n%s\n' "Could not find '$thisdl'. Please install it first."
+    return 1
   fi
   printf '\r%s\n' "[OK]    "
 
@@ -423,13 +483,11 @@ then
   printf '%s\n' "No API Key, exiting."
   [ -n "$sourced" ] && return 1 || exit 1
 fi
-#SPACECP_APIKEY=$(urlencode "$SPACECP_APIKEY")
 if [ -z "$SPACECP_SERVID" ]
 then
   printf '%s\n' "No Server ID, exiting."
   [ -n "$sourced" ] && return 1 || exit 1
 fi
-#SPACECP_SERVID=$(urlencode "$SPACECP_SERVID")
 
 if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$o
 then
