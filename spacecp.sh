@@ -66,81 +66,12 @@ show_help () {
 __ () {
   printf '%s\n' "$___";
 }
-# Next is this masterpiece: a json-parser written 100% in sh and coreutils.
-# It can traverse json-arrays as well, only downside is it only supports json with a depth of 1
-#  (f.i. {foo:bar, json:{1:2}} but not {foo:bar, json:{json:{1:2}}}).
-# It's really fucking basic and will probably fail on anything just slightly more complicated,
-#  but it works for what I need it so that's fine with me!
-#
-# *so proud*
-json_parse () {
-  # Read json from stdin and set subjson to dummy value to "start" the loop
-  json="$(tr -d '\n' </dev/stdin)"
-  subjson="_"
-  d="$(echo "$json" | sed -n 's/^[ ]*\({\|\[\).*/\1/p')"
-  expr "$d" : "\({\|\[\)" >$o && json="$(echo "$json" | sed 's/^[ ]*\({\|\[\)//')" || d=""
-  # Json parsing
-  if [ -z "$d" -o "$d" = "{" ]
-  then
-    # Return json and exit code 2 if no keys are given
-    [ -z "$1" ] && echo "$d$json" && return 2
-    while [ -n "$subjson" ] && expr "$subjson" : "^[ ]*}[ ]*$">$o
-    do
-      # = Find subjson =
-      # subjson is just a key:value pair in the json.
-      # For this I simply wrote a regular expression in BRE that should match most if not all json key:value pairs
-      #  (it catches numbers and strings as key and numbers, strings, json and arrays as values).
-      # grep returns the first found pair (grep | head -n1 is practically a non-greedy version of sed 's/.*REGEXP//').
-      subjson="$(echo "$json" \
-                 | grep -o "\(\"[^\"]\+\"\|[^\":]\+\)[ ]*:[ ]*\({[^}]*}\|\[[^]]*\]\|[^\",}]\+\|\"[^}\"]*\"\)" \
-                 | head -n1)"
-      # Now simply check if the key of the pair is the given key.
-      if expr "$subjson" : "[ ]*[\"]\?$1[\"]\?[ ]*:.*" >$o
-      then
-        # If it is, isolate the value of the key...
-        hit="$(echo "$subjson" | sed "s/[\"]\?$1[\"]\?[ ]*:[ ]*//; s/\(^\"\|\"$\)//g; s/\(^[ ]*\|[ ]*$\)//g")"
-        # ...and return it!
-        echo "$hit"
-        return 0
-      fi
-      # Escape that bitch!
-      subjson=$(echo "$subjson" | sed 's/\(\$\|\.\|\*\|\/\|\[\|\\\|\]\|\^\)/\\&/g')
-      # If the found key was not the given key, remove subjson from the whole json string and start from top!
-      # (stderr from sed is suppressed because it may throw errors on certain subjson)
-      json="$(echo "$json" | sed "s/.*$subjson[, ]*//")"
-    done
-  # Array parsing
-  else if [ -n "$d" -a "$d" = "[" ]
-  then
-    # Return json and exit code 2 if no number is given
-    #  (no arguments are ok since it's supposed to return the number of elements in the array then).
-    [ -n "$1" ] && ! expr "$1" : '^[0-9]\+$'>$o && echo "$d$json" && return 2
-    i=1
-    # Traverse array until no elements are left.
-    while [ -n "$subjson" ] || expr "$subjson" : "^[ ]*\][ ]*$">$o
-    do
-      # = Find 'subjson' (subarray) =
-      # This is basically just the second part of the subjson regexp, not really much to explain...
-      subjson="$(echo "$json" | grep -o "\({[^}]*}\|\[[^]]*\]\|[^\",}]\+\|\"[^}\"]*\"\)[ ]*\(,\|\]\)[ ]*" | head -n1)"
-      # Return the current element if it's the wanted one.
-      if [ -n "$1" ] && [ $i -eq $1 ]
-      then
-        hit="$(echo "$subjson" | sed "s/[ ]*\(,\|\]\)[ ]*$//; s/\(^\"\|\"$\)//g; s/\(^[ ]*\|[ ]*$\)//g")"
-        echo "$hit"
-        return 0
-      fi
-      subjson=$(echo "$subjson" | sed 's/\(\$\|\.\|\*\|\/\|\[\|\\\|\]\|\^\)/\\&/g')
-      json="$(echo "$json" | sed "s/.*$subjson[ ]*//")"
-      i=$(expr $i + 1)
-    done
-    # Return the maximal number of elements if it couldn't find the wanted element or no argument was given.
-    # (i is always 2 bigger since the loop checks if subjson is zero, which will only be set 1 turn after json is zero,
-    #  and because it got initialized as 1 and not 0).
-    # But also exit code 2 since it's not a found element!
-    echo "$(expr $i - 2)"
-    return 2
-  fi; fi
-  return 1
+ask () {
+   printf '%s [Y/n] ' "$1"
+   [ "$ultima_yes" -eq 1 ] && printf "Y\n" && return 0
+   read yn
+   case "$yn" in [Yy]*|'') return 0;; esac
+   return 1
 }
 
 [ "$1" = "--" ] && shift
@@ -151,8 +82,8 @@ while [ -n "$1" ]
 do
   case "$1" in
     --*=*)
-      par=$(echo "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
-      arg=$(echo "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
+      par=$(printf "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
+      arg=$(printf "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
       ds=0
       ;;
     --*)
@@ -242,14 +173,11 @@ install_spacecp () {
   unzip -uo "$tmp/spacecp_conf.zip" >$o
   [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1) \
                              || return 1
-#  echo "$spacecp_conf" > "$SPACECP_CONFFILE"
-#  [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n%s\n' "Could not write to '$SPACECP_CONFFILE'." && exit 1) \
-#                             || return 1
   printf '\r%s\n' "[OK]    "
 
 
   printf '%s' "[     ] $SPACECP_SERVJAR..."
-  if ! [ -s "$SPACECP_SERVJAR" ]
+  if ([ -s "$SPACECP_SERVJAR" ] && ask "'$SPACECP_SERVKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_SERVJAR" ]
   then
     ## UGLY HARDCODED STUFF
     if printf "$SPACECP_SERVJAR"|awk '{if(!match($1,"craftbukkit.jar$")){exit 2}}' >$o
@@ -273,7 +201,7 @@ install_spacecp () {
 
 
   printf '%s' "[     ] $SPACECP_RTKJAR..."
-  if ! [ -s "$SPACECP_RTKJAR" ]
+  if ([ -s "$SPACECP_RTKJAR" ] && ask "'$SPACECP_RTKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_RTKJAR" ]
   then
     dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
     "$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -289,7 +217,7 @@ install_spacecp () {
 
 
   printf '%s' "[     ] $SPACECP_RPJAR..."
-  if ! [ -s "$SPACECP_RPJAR" ]
+  if ([ -s "$SPACECP_RPJAR" ] && ask "'$SPACECP_RPJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_RPJAR" ]
   then
     dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
     "$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -305,7 +233,7 @@ install_spacecp () {
 
 
   printf '%s' "[     ] $SPACECP_SMJAR..."
-  if ! [ -s "$SPACECP_SMJAR" ]
+  if ([ -s "$SPACECP_SMJAR" ] && ask "'$SPACECP_SMKJAR' already exists. Overwrite?") || ! [ -s "$SPACECP_MVJAR" ]
   then
     dlurl=$(curl -sLA "SpaceCP Script $SPACECP______" \
     "$SPACECP_DLAPIURL/software/spacecp_module?channel=rec" | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
@@ -329,43 +257,40 @@ install_spacecp () {
   newlibver=$(printf '%s' "$libjson" \
               | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
               | head -n1 | sed 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/')
-  if [ -z "$libver" ]
+  newlibhash=$(printf '%s' "$libjson" \
+               | grep -om1 '"hash"[ ]*:[ ]*"[a-fA-F0-9]\+' \
+               | head -n1 | sed 's/"hash"[ ]*:[ ]*"\([a-fA-F0-9]\+\)"/\1/')
+  if [ -n "$newliburl" ] && [ -n "$newlibver" ]
   then
-    if [ -n "$newliburl" ] && [ -n "$newlibver" ]
+    if [ -z "$libver" ] || [ "$libver" -lt "$newlibver" ]
     then
       curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
       [ -s "$tmp/spacecp_libraries.zip" ] || (printf '\r[ERROR] %s\n' \
                                               "Could not fetch the SpaceCP Libraries from '$newliburl'." \
                                               && exit 1) || return 1
-      unzip -uo "$tmp/spacecp_libraries.zip" >$o
-      if grep '^libraries:$' "$SPACECP_CONFFILE" >$o
-      then
-        if grep '^  version:' "$SPACECP_CONFFILE" >$o
-        then sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' \
-             "$SPACECP_CONFFILE" 2>$o
-        else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$o
+      thishash=$(openssl sha1 "$tmp/spacecp_libraries.zip" | sed 's/.* //')
+      if [ "$thishash" = "$newlibhash" ]
+        unzip -uo "$tmp/spacecp_libraries.zip" >$o
+        if grep '^libraries:$' "$SPACECP_CONFFILE" >$o
+        then
+          if grep '^  version:' "$SPACECP_CONFFILE" >$o
+          then sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: [0-9]\+/  version: '"$newlibver"'/' "$SPACECP_CONFFILE">$o
+          else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
+          fi
+          if grep '^  hash:' "$SPACECP_CONFFILE" >$o
+          then sed -i '/^libraries:$/,/^[^ ]\+/s/^  hash: [a-fA-F0-9]\+/  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+          else sed -i 's/^libraries:$/libraries:\n  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+          fi
+        else printf '\n%s\n' "libraries:\n  version: $newlibver\n  hash: $thishash" >> "$SPACECP_CONFFILE"
         fi
       else
-        printf '\n%s\n' "libraries:\n  version: $newlibver" >> "$SPACECP_CONFFILE"
+        printf '\r[ERROR] \n%s\n' "Wrong hash '$thishash', should be '$newlibhash'."
       fi
-    else
-      printf '\r[ERROR] \n%s\n' "Could not fetch the SpaceCP Libraries from SpaceDL under\
- '$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec'."
-      return 1
     fi
   else
-    if [ -n "$newliburl" ] && [ -n "$newlibver" ]
-    then
-      if [ "$libver" -lt "$newlibver" ]
-      then
-        curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
-        [ -s "spacecp_libraries.zip" ] || (printf '\r[ERROR] \%s\n' \
-                                           "Could not update the SpaceCP Libraries from '$newliburl'." && exit 1) \
-                                       || return 0
-        unzip -uo "$tmp/spacecp_libraries.zip" >$o
-        sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" 2>$o
-      fi
-    fi
+    printf '\r[ERROR] \n%s\n' "Could not fetch the SpaceCP Libraries from SpaceDL under\
+ '$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec'."
+    return 1
   fi
   printf '\r%s\n' "[OK]    "
 
@@ -523,23 +448,17 @@ if [ -s "$SPACECP_CONFFILE" ] && [ "$force_update" -ne 2 ]
 then
   if ! update_spacecp
   then # Already installed but couldn't successfully update
-    printf '%s' "Could not update SpaceCP. Start anyway [Y/n]? "
-    [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
-    yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
-  fi
-  if [ -z "$yn" ]
-  then
-    if ! start_spacecp
-    then # Already installed but couldn't successfully start
-      printf '%s\n' "Could not start SpaceCP."
-      [ -n "$sourced" ] && return 1 || exit 1
+    if ask "Could not update SpaceCP. Start anyway?"
+    then
+      if ! start_spacecp
+      then # Already installed but couldn't successfully start
+        printf '%s\n' "Could not start SpaceCP."
+        [ -n "$sourced" ] && return 1 || exit 1
+      fi
     fi
   fi
 else
-  printf '%s' "No SpaceCP configuration found. Install SpaceCP [Y/n]? "
-  [ $ultima_yes -eq 1 ] && yn="y" && printf 'Y\n' || read yn
-  yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
-  if [ -z "$yn" ]
+  if ask "No SpaceCP configuration found. Install SpaceCP?"
   then
     if install_spacecp
     then # Successfully installed
