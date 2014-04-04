@@ -221,7 +221,7 @@ install_spacecp () {
     dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
     dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
     [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
                                           "Could not find any recommended build for '$thisdl' under '$thisurl'."
@@ -253,7 +253,7 @@ install_spacecp () {
     dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
     dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
     [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n%s\n' \
                                           "Could not find any recommended build for '$thisdl' under '$thisurl'."
