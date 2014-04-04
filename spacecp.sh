@@ -38,11 +38,11 @@ if command -v tmux >/dev/null 2>&1
 # DEFAULT: "new-session -d -s 'SpaceCP' \""
 # DEFAULT: "\""
 then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTPRE="new-session -d -s 'SpaceCP' \"" && SPACECP_STARTSU="\""
-else if command -v screen >/dev/null 2>&1
+elif command -v screen >/dev/null 2>&1
 # DEFAULT: "screen"
 # DEFAULT: "-dmLS 'SpaceCP'"
 then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTPRE="-dmLS 'SpaceCP'"
-fi; fi
+fi
 # Variable for custom args passed to RTK
 # IMPORTANT: Arguments must be in a string!
 # DEFAULT: ""
@@ -164,13 +164,17 @@ install_spacecp () {
   tmp=$(TMPDIR=$(pwd) mktemp -d 'spacecptmp_XXXXXXXXXX')
   [ "$force_update" -eq 2 ] && set 1
 
+
   printf '%s' "[     ] Getting configuration..."
   curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_conf.zip" --create-dirs \
   "$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID"
-  [ -e "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch the configuration under\
+  [ -s "$tmp/spacecp_conf.zip" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch the configuration under\
  '$SPACECP_URL/api/getServerConfigs?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID'." && exit 1) || return 1
-  unzip -uo "$tmp/spacecp_conf.zip" >$o
-  [ -e "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n %s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1) \
+  if [ -n "$1" ]
+  then unzip -o "$tmp/spacecp_conf.zip" >$o
+  else unzip -uo "$tmp/spacecp_conf.zip" >$o
+  fi
+  [ -s "$SPACECP_CONFFILE" ] || (printf '\r[ERROR] \n %s\n' "Could not extract/find '$SPACECP_CONFFILE'." && exit 1) \
                              || return 1
   printf '\r%s\n' "[OK]    "
 
@@ -186,18 +190,18 @@ install_spacecp () {
     then
       dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
       dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-      dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
-               | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+              | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+      dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+"' \
+               | head -n1 | sed -n 's/"checksum"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
       [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n %s\n' \
-                                            "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                            "Could not find any recommended build for '$thisdl' under '$thisurl'." \
                                          && return 1
       curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-      [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1)
+      [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1) \
                               || return 1
-      thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-      if [ "$thishash" = "$dlhash" ]
-      then mv "$tmp/$thisbase" "$thisdl"
+      thishash=$(openssl md5 "$tmp/$thisbase" | sed 's/.* //')
+      if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+      then mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
       else
         printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
         return 1
@@ -218,18 +222,18 @@ install_spacecp () {
   then
     dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
     dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
-             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+            | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+"' \
+             | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([^"]\+\)"/\1/')
     [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n %s\n' \
-                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'." \
                                        && return 1
     curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1)
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1) \
                             || return 1
     thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-    if [ "$thishash" = "$dlhash" ]
-    then mv "$tmp/$thisbase" "$thisdl"
+    if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+    then mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
     else
       printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
       return 1
@@ -249,18 +253,18 @@ install_spacecp () {
   then
     dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
     dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
-             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+            | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+"' \
+             | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
     [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n %s\n' \
-                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'." \
                                        && return 1
     curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1)
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1) \
                             || return 1
     thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-    if [ "$thishash" = "$dlhash" ]
-    then mv "$tmp/$thisbase" "$thisdl"
+    if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+    then mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
     else
       printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
       return 1
@@ -280,18 +284,18 @@ install_spacecp () {
   then
     dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
     dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-            | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+" \
-             | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
+            | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+    dlhash=$(printf '%s' "$dljson" | grep -om1 '"checksum"[ ]*:[ ]*"[^"]\+"' \
+             | head -n1 | sed -n 's/"checksum"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
     [ -z "dlhash" ] || [ -z "$dlurl" ] && printf '\r[ERROR] \n %s\n' \
-                                          "Could not find any recommended build for '$thisdl' under '$thisurl'."
+                                          "Could not find any recommended build for '$thisdl' under '$thisurl'." \
                                        && return 1
     curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1)
+    [ -s "$tmp/$thisbase" ] || (printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'." && exit 1) \
                             || return 1
     thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-    if [ "$thishash" = "$dlhash" ]
-    then mv "$tmp/$thisbase" "$thisdl"
+    if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+    then mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
     else
       printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
       return 1
@@ -308,22 +312,23 @@ install_spacecp () {
   libjson=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
   newliburl=$(printf '%s' "$libjson" \
               | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+              | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/p')
   newlibver=$(printf '%s' "$libjson" \
               | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
-              | head -n1 | sed 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/')
+              | head -n1 | sed -n 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/p')
   newlibhash=$(printf '%s' "$libjson" \
-               | grep -om1 '"hash"[ ]*:[ ]*"[a-fA-F0-9]\+' \
-               | head -n1 | sed 's/"hash"[ ]*:[ ]*"\([a-fA-F0-9]\+\)"/\1/')
+               | grep -om1 '"hash"[ ]*:[ ]*"[a-fA-F0-9]\+"' \
+               | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([a-fA-F0-9]\+\)"/\1/p')
   if [ -n "$newliburl" ] && [ -n "$newlibver" ]
   then
-    if [ -z "$libver" ] || [ "$libver" -lt "$newlibver" ]
+    if [ -n "$1" ] || [ -z "$libver" ] || [ "$libver" -lt "$newlibver" ]
     then
       curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
       if [ -s "$tmp/spacecp_libraries.zip" ]
       then
         thishash=$(openssl sha1 "$tmp/spacecp_libraries.zip" | sed 's/.* //')
-        if [ "$thishash" = "$newlibhash" ]
+        if [ -z "$dlhash" ] || [ "$thishash" = "$newlibhash" ]
+        then
           if [ -n "$1" ]
           then unzip -o "$tmp/spacecp_libraries.zip" >$o
           else unzip -uo "$tmp/spacecp_libraries.zip" >$o
@@ -332,19 +337,23 @@ install_spacecp () {
           then
             if grep '^  version:' "$SPACECP_CONFFILE" >$o
             then
-              sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: [0-9]\+/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
-            else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
+              sed -i '/^libraries:$/,/^[^ ]\+/s/^  version:.*$/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
+            else sed -i '/^libraries:$/a\
+  version: '"$newlibver" "$SPACECP_CONFFILE" >$o
             fi
             if grep '^  hash:' "$SPACECP_CONFFILE" >$o
             then
-              sed -i '/^libraries:$/,/^[^ ]\+/s/^  hash: [a-fA-F0-9]\+/  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
-            else sed -i 's/^libraries:$/libraries:\n  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+              sed -i '/^libraries:$/,/^[^ ]\+/s/^  hash:.*$/  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+            else sed -i '/^libraries:$/a\
+  hash: '"$thishash" "$SPACECP_CONFFILE" >$o
             fi
-          else printf '\n%s\n' "libraries:\n  version: $newlibver\n  hash: $thishash" >> "$SPACECP_CONFFILE"
+          else
+            printf '\n' >> "$SPACECP_CONFFILE"
+            printf '%s\n' "libraries:" "  version: $newlibver" "  hash: $thishash" >> "$SPACECP_CONFFILE"
           fi
-        else printf '\r[ERROR] \n %s\n' "Could not fetch the SpaceCP Libraries from '$newliburl'." && return 1
+        else printf '\r[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$newlibhash'." && return 1
         fi
-      else printf '\r[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$newlibhash'." && return 1
+      else printf '\r[ERROR] \n %s\n' "Could not fetch the SpaceCP Libraries from '$newliburl'." && return 1
       fi
     fi
   else
@@ -370,94 +379,105 @@ update_spacecp () {
   tmp=$(TMPDIR=$(pwd) mktemp -d 'spacecptmp_XXXXXXXXXX')
   [ "$force_update" -eq 1 ] && set 1
 
+
   thisdl="$SPACECP_RTKJAR"
-  thischannel=$(sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE") ## THIS
+  thischannel=$(sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE")
   case "$thischannel" in
   development) thisurl="$SPACECP_DLAPIURL/software/remotetoolkit?channel=dev";;
   recommended) thisurl="$SPACECP_DLAPIURL/software/remotetoolkit?channel=rec";;
   *) thisurl="$SPACECP_DLAPIURL/software/remotetoolkit";;
   esac
   thisbase=$(basename "$thisdl")
-  thisstat=$(stat -c '%Y' "$thisdl" 2>&1)
+  thisstat=$(stat -c '%Y' "$thisdl" 2>$o)
   printf '%s' "[     ] $thisdl..."
   dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
   dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-          | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
-           | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
-  [ -z "dlhash" ] || [ -z "$dlurl" ] || [ -z "$dlstat" ]
-    && printf '\r[ERROR] \n %s\n' "Could not find any $thischannel build for '$thisdl' under '$thisurl'."
-  if [ -n "$1" ] || ! [ -s "$thisdl" ] || [ "$dlstat" -gt "$thisstat" ]
+          | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+"' \
+           | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlstat=$(printf '%s' "$dljson" | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
+           | head -n1 | sed -n 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/p')
+  if [ -n "dlhash" ] && [ -n "$dlurl" ] && [ -n "$dlstat" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-    if [ -s "$tmp/$thisbase" ]
+    if [ -n "$1" ] || ! [ -s "$thisdl" ] || [ "$dlstat" -gt "$thisstat" ]
     then
-      thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-      if (![ -s "$thisdl" ] && [ -z "$dlhash" ]) || [ "$thishash" = "$dlhash" ]
+      curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+      if [ -s "$tmp/$thisbase" ]
       then
-        if mv "$tmp/$thisbase" "$thisdl"
-        then printf '\r%s\n' "[OK]    $thisdl updated!"
+        thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+        if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+        then
+          if mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
+          then printf '\r%s\n' "[OK]    $thisdl updated!"
+          fi
+        else printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
         fi
-      else printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
+      else printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'."
       fi
-    else printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'."
+    else printf   "\r[OK]    $thisdl already up to date.\n"
     fi
-  else printf   '\r[OK]    $thisdl already up to date.'
+  else printf '\r[ERROR] \n %s\n' "Could not find any $thischannel build for '$thisdl' under '$thisurl'."
   fi
 
 
   thisdl="$SPACECP_RPJAR"
-  thischannel=$(sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE") ## THIS
+  thischannel=$(sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE")
   case "$thischannel" in
   development) thisurl="$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=dev";;
   recommended) thisurl="$SPACECP_DLAPIURL/software/remotetoolkitplugin?channel=rec";;
   *) thisurl="$SPACECP_DLAPIURL/software/remotetoolkitplugin";;
   esac
   thisbase=$(basename "$thisdl")
-  thisstat=$(stat -c '%Y' "$thisdl" 2>&1)
+  thisstat=$(stat -c '%Y' "$thisdl" 2>$o)
   printf '%s' "[     ] $thisdl..."
   dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
   dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-          | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
-           | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
-  [ -z "dlhash" ] || [ -z "$dlurl" ] || [ -z "$dlstat" ]
-    && printf '\r[ERROR] \n %s\n' "Could not find any $thischannel build for '$thisdl' under '$thisurl'."
-  if [ -n "$1" ] || ! [ -s "$thisdl" ] || [ "$dlstat" -gt "$thisstat" ]
+          | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+"' \
+           | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlstat=$(printf '%s' "$dljson" | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
+           | head -n1 | sed -n 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/p')
+  if [ -n "dlhash" ] && [ -n "$dlurl" ] && [ -n "$dlstat" ]
   then
-    curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
-    if [ -s "$tmp/$thisbase" ]
+    if [ -n "$1" ] || ! [ -s "$thisdl" ] || [ "$dlstat" -gt "$thisstat" ]
     then
-      thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-      if (![ -s "$thisdl" ] && [ -z "$dlhash" ]) || [ "$thishash" = "$dlhash" ]
+      curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/$thisbase" --create-dirs "$dlurl"
+      if [ -s "$tmp/$thisbase" ]
       then
-        if mv "$tmp/$thisbase" "$thisdl"
-        then printf '\r%s\n' "[OK]    $thisdl updated!"
+        thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
+        if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
+        then
+          if mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
+          then printf '\r%s\n' "[OK]    $thisdl updated!"
+          fi
+        else printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
         fi
-      else printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
+      else printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'."
       fi
-    else printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'."
+    else printf   "\r[OK]    $thisdl already up to date.\n"
     fi
-  else printf   '\r[OK]    $thisdl already up to date.'
-  fi
+   else printf '\r[ERROR] \n %s\n' "Could not find any $thischannel build for '$thisdl' under '$thisurl'."
+   fi
 
 
   thisdl="$SPACECP_SMJAR"
-  thischannel=$(sed -n '/^wrapper:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE") ## THIS
+  thischannel=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  channel: \([a-zA-Z]\+\)/\1/p' "$SPACECP_CONFFILE")
   case "$thischannel" in
   development) thisurl="$SPACECP_DLAPIURL/software/spacecp_module?channel=dev";;
-  recommended) thisurl="$SPACECP_DLAPIURL/software/spacecp_module?channel=rec";;
+  release|recommended) thisurl="$SPACECP_DLAPIURL/software/spacecp_module?channel=rec";;
   *) thisurl="$SPACECP_DLAPIURL/software/spacecp_module";;
   esac
   thisbase=$(basename "$thisdl")
-  thisstat=$(stat -c '%Y' "$thisdl" 2>&1)
+  thisstat=$(stat -c '%Y' "$thisdl" 2>$o)
   printf '%s' "[     ] $thisdl..."
   dljson=$(curl -sLA "SpaceCP Script $SPACECP______" -H "accept:application/json" "$thisurl")
   dlurl=$(printf '%s' "$dljson" | grep -om1 '"url"[ ]*:[ ]*"[^"]\+"' \
-          | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/')
-  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+" \
-           | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/'')
-  [ -z "dlhash" ] || [ -z "$dlurl" ] || [ -z "$dlstat" ]
+          | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlhash=$(printf '%s' "$dljson" | grep -om1 '"hash"[ ]*:[ ]*"[^"]\+"' \
+           | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([^"]\+\)"/\1/p')
+  dlstat=$(printf '%s' "$dljson" | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
+           | head -n1 | sed -n 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/p')
+  [ -z "dlhash" ] || [ -z "$dlurl" ] || [ -z "$dlstat" ] \
     && printf '\r[ERROR] \n %s\n' "Could not find any $thischannel build for '$thisdl' under '$thisurl'."
   if [ -n "$1" ] || ! [ -s "$thisdl" ] || [ "$dlstat" -gt "$thisstat" ]
   then
@@ -465,40 +485,41 @@ update_spacecp () {
     if [ -s "$tmp/$thisbase" ]
     then
       thishash=$(openssl sha1 "$tmp/$thisbase" | sed 's/.* //')
-      if (![ -s "$thisdl" ] && [ -z "$dlhash" ]) || [ "$thishash" = "$dlhash" ]
+      if [ -z "$dlhash" ] || [ "$thishash" = "$dlhash" ]
       then
-        if mv "$tmp/$thisbase" "$thisdl"
+        if mkdir -p $(dirname "$thisdl") && mv "$tmp/$thisbase" "$thisdl"
         then printf '\r%s\n' "[OK]    $thisdl updated!"
         fi
       else printf '\t[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$dlhash'."
       fi
     else printf '\r[ERROR] \n %s\n' "Could not fetch '$thisbase' from '$dlurl'."
     fi
-  else printf   '\r[OK]    $thisdl already up to date.'
+  else printf   "\r[OK]    $thisdl already up to date.\n"
   fi
 
 
   printf '%s' "[     ] SpaceCP Libraries..."
-  libver=$(cat "$SPACECP_CONFFILE" 2>/dev/null | sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p')
+  libver=$(sed -n '/^libraries:$/,/^[^ ]\+/s/^  version: \([0-9]\+\)/\1/p' "$SPACECP_CONFFILE")
   libjson=$(curl -sLA "SpaceCP Script $SPACECP______" "$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec")
   newliburl=$(printf '%s' "$libjson" \
               | grep -om1 '"url"[ ]*:[ ]*"[^"]*"' \
-              | head -n1 | sed 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/')
+              | head -n1 | sed -n 's/"url"[ ]*:[ ]*"\([^"]*\)"/\1/p')
   newlibver=$(printf '%s' "$libjson" \
               | grep -om1 '"createdAt"[ ]*:[ ]*[0-9]\+' \
-              | head -n1 | sed 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/')
+              | head -n1 | sed -n 's/"createdAt"[ ]*:[ ]*\([0-9]\+\)/\1/p')
   newlibhash=$(printf '%s' "$libjson" \
-               | grep -om1 '"hash"[ ]*:[ ]*"[a-fA-F0-9]\+' \
-               | head -n1 | sed 's/"hash"[ ]*:[ ]*"\([a-fA-F0-9]\+\)"/\1/')
+               | grep -om1 '"hash"[ ]*:[ ]*"[a-fA-F0-9]\+"' \
+               | head -n1 | sed -n 's/"hash"[ ]*:[ ]*"\([a-fA-F0-9]\+\)"/\1/p')
   if [ -n "$newliburl" ] && [ -n "$newlibver" ]
   then
-    if [ -z "$libver" ] || [ "$libver" -lt "$newlibver" ]
+    if [ -n "$1" ] || [ -z "$libver" ] || [ "$libver" -lt "$newlibver" ]
     then
       curl -sLA "SpaceCP Script $SPACECP______" -o "$tmp/spacecp_libraries.zip" --create-dirs "$newliburl"
       if [ -s "$tmp/spacecp_libraries.zip" ]
       then
         thishash=$(openssl sha1 "$tmp/spacecp_libraries.zip" | sed 's/.* //')
-        if [ "$thishash" = "$newlibhash" ]
+        if [ -z "$dlhash" ] || [ "$thishash" = "$newlibhash" ]
+        then
           if [ -n "$1" ]
           then
             if unzip -o "$tmp/spacecp_libraries.zip" >$o
@@ -506,26 +527,30 @@ update_spacecp () {
             fi
           else
             if unzip -uo "$tmp/spacecp_libraries.zip" >$o
-            then printf '\r[OK]    SPACECP Libraries updates!\n'
+            then printf '\r[OK]    SpaceCP Libraries updated!\n'
             fi
           fi
           if grep '^libraries:$' "$SPACECP_CONFFILE" >$o
           then
             if grep '^  version:' "$SPACECP_CONFFILE" >$o
             then
-              sed -i '/^libraries:$/,/^[^ ]\+/s/^  version: [0-9]\+/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
-            else sed -i 's/^libraries:$/libraries:\n  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
+              sed -i '/^libraries:$/,/^[^ ]\+/s/^  version:.*$/  version: '"$newlibver"'/' "$SPACECP_CONFFILE" >$o
+            else sed -i '/^libraries:$/a\
+  version: '"$newlibver" "$SPACECP_CONFFILE" >$o
             fi
             if grep '^  hash:' "$SPACECP_CONFFILE" >$o
             then
-              sed -i '/^libraries:$/,/^[^ ]\+/s/^  hash: [a-fA-F0-9]\+/  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
-            else sed -i 's/^libraries:$/libraries:\n  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+              sed -i '/^libraries:$/,/^[^ ]\+/s/^  hash:.*$/  hash: '"$thishash"'/' "$SPACECP_CONFFILE" >$o
+            else sed -i '/^libraries:$/a\
+  hash: '"$thishash" "$SPACECP_CONFFILE" >$o
             fi
-          else printf '\n%s\n' "libraries:\n  version: $newlibver\n  hash: $thishash" >> "$SPACECP_CONFFILE"
+          else
+            printf '\n' >> "$SPACECP_CONFFILE"
+            printf '%s\n' "libraries:" "  version: $newlibver" "  hash: $thishash" >> "$SPACECP_CONFFILE"
           fi
-        else printf '\r[ERROR] \n %s\n' "Could not fetch the SpaceCP Libraries from '$newliburl'."
+        else printf '\r[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$newlibhash'."
         fi
-      else printf '\r[ERROR] \n %s\n' "Wrong hash '$thishash', should be '$newlibhash'."
+      else printf '\r[ERROR] \n %s\n' "Could not fetch the SpaceCP Libraries from '$newliburl'."
       fi
     else printf '\r[OK]    SpaceCP Libraries already up to date.\n'
     fi
@@ -534,7 +559,6 @@ update_spacecp () {
  '$SPACECP_DLAPIURL/software/spacecp_libraries?channel=rec'."
     return 1
   fi
-  printf '\r%s\n' "[OK]    "
 
 
   printf '%s' "[     ] Removing temporary files..."
@@ -563,12 +587,10 @@ start_spacecp () {
 }
 
 if [ -z "$SPACECP_APIKEY" ] && [ -s "$SPACECP_CONFFILE" ]
-then SPACECP_APIKEY=$(cat "$SPACECP_CONFFILE" 2>$o \
-                      | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p')
+then SPACECP_APIKEY=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p' "$SPACECP_CONFFILE")
 fi
 if [ -z "$SPACECP_SERVID" ] && [ -s "$SPACECP_CONFFILE" ]
-then SPACECP_SERVID=$(cat "$SPACECP_CONFFILE" 2>$o \
-                      | sed -n '/^spacecp:$/,/^[^ ]\+/s/^  serverid: \([a-fA-F0-9]\+\)$/\1/p')
+then SPACECP_SERVID=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  serverid: \([a-fA-F0-9]\+\)$/\1/p' "$SPACECP_CONFFILE")
 fi
 if [ -z "$SPACECP_APIKEY" ]
 then
@@ -605,6 +627,12 @@ then
         printf '%s\n' "Could not start SpaceCP."
         [ -n "$sourced" ] && return 1 || exit 1
       fi
+    fi
+  else # Already installed and updated successfully
+    if ! start_spacecp
+    then # Already installed and updated but couldn't successfully start
+      printf '%s\n' "Could not start SpaceCP."
+      [ -n "$sourced" ] && return 1 || exit 1
     fi
   fi
 else
