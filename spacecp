@@ -18,10 +18,10 @@ SPACECP_SMJAR="toolkit/modules/spacemodule.jar"
 SPACECP_RPJAR="plugins/rtkplugin.jar"
 # glaring display last night, eh?
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
-# well fuck you than, if you're not gonna talk you might as well just go UGH
+# well fuck you then, if you're not gonna talk you might as well just go UGH
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
-[ "$_" != "$0" ] || sourced=1
+[ "$_" != "$0" ] && SOURCED=0 || SOURCED=1
 ___=""
 ____=""
 _____=""
@@ -61,7 +61,159 @@ force_update=0 # 0 nothing, 1 update, 2 install
 o='/dev/null'
 
 show_help () {
-  printf '%s\n' "wow it's a fucking help"; # TODO help stuff goes here I guess...
+  printf "Usage:	spacecp -k <apikey> -i <serverid> [-u <spacecpurl>] [-du <dlapiurl>] [-gu <gdnapiurl>] [-c <config>]\n"
+  printf "		[-sj <serverjar>] [-rj <rtkjar>] [-mj <modulejar>] [-pj <pluginjar>] [-s/-S] [-U] [-I] [-y] [-h]\n"
+  printf "\n"
+  printf "\n"
+  printf "Information:\n"
+  printf "\n"
+  printf "	The SpaceCP script installs, updates and starts a minecraft server with all the needed files for SpaceCP.\n"
+  printf "	It can be used to upgrade an existing server to use it with SpaceCP or install a new one from scratch.\n"
+  printf "	It will per default automatically start the server in the background with either start-stop-daemon,\n"
+  printf "	screen or tmux (favoring tmux over screen over start-stop-daemon), but other tools can be specified in the\n"
+  printf "	script with the SPACECP_STARTCOMMAND (PATH to the binary), SPACECP_STARTPRE (arguments passed after the\n"
+  printf "	startcommand, but before all the other commands) and SPACECP_STARTSU (arguments passed after everything else).\n"
+  printf "	It will also keep the RemoteToolkit jar, the RTK Plugin jar, the SpaceCP Module and the SpaceCP Libraries\n"
+  printf "	updated.\n"
+  printf "	For common usage examples, see 'Examples', for all possible commands see 'Options' and 'Flags', see also 'Notes'\n"
+  printf "	for helpful and important notes on the different options and flags.\n"
+  printf "\n"
+  printf "\n"
+  printf "Examples:\n"
+  printf "\n"
+  printf "	spacecp -k 0123456789abcdef -i fedcba9876543210 -y\n"
+  printf "		Will install SpaceCP with the API Key 0123456789abcdef and the Server ID fedcba9876543210 if it is not\n"
+  printf "		already installed, and will not prompt on overrides.\n"
+  printf "\n"
+  printf "	spacecp -U -y\n"
+  printf "		Will first update the RemoteToolkit jar, RTK Plugin jar, SpaceCP Module jar and SpaceCP Libraries,\n"
+  printf "		not prompting to overwrite them, and will then start the server, even if the Update was unsuccessful.\n"
+  printf "\n"
+  printf "	spacecp\n"
+  printf "		Will simply start the server. It may prompt if an automatic update failed,\n"
+  printf "		so use with the -y flag inside init scripts is advised.\n"
+  printf "\n"
+  printf "	spacecp -s\n"
+  printf "		Will peacefully stop the server (use upper case -S to forcefully stop it if it doesn't respond).\n"
+  printf "\n"
+  printf "\n"
+  printf "Options:\n"
+  printf "\n"
+  printf "	-k, --api-key <apikey>\n"
+  printf "		Set the API Key to <apikey>.\n"
+  printf "		This option is needed, see Notes for more information.\n"
+  printf "\n"
+  printf "	-i, --server-id <serverid>\n"
+  printf "		Set the Server ID to <serverid>.\n"
+  printf "		This option is needed, see Notes for more information.\n"
+  printf "\n"
+  printf "	-u, --url <spacecpurl>\n"
+  printf "		Set the SpaceCP URL to <spacecpurl>.\n"
+  printf "		Default: http://spacecp.net\n"
+  printf "\n"
+  printf "	-du, --dl-url <dlapiurl>\n"
+  printf "		Set the DL API URL to <dlapiurl>.\n"
+  printf "		Default: http://dl.api.xereo.net/v1\n"
+  printf "\n"
+  printf "	-gu, --gdn-url <gdnapiurl>\n"
+  printf "		Set the GDN API URL to <gdnapiurl>.\n"
+  printf "		Note, that the updating and installing processes are explicitely hardcoded for the latest GDN API as by\n"
+  printf "		'https://github.com/connor4312/SpaceGDN' currently and thus changing the GDN API URL is currently\n"
+  printf "		NOT recommended.\n"
+  printf "		Default: http://gdn.api.xereo.net/v1\n"
+  printf "\n"
+  printf "	-c, --config <config>\n"
+  printf "		Set the SpaceCP Configuration PATH to <config>.\n"
+  printf "		Default: SpaceCP/config.yml\n"
+  printf "\n"
+  printf "	-sj, --server-jar <serverjar>\n"
+  printf "		Set the Minecraft Server Jar PATH to <serverjar>.\n"
+  printf "		Note, that currently only Craftbukkit is supported for automatic installing!\n"
+  printf "		Default: craftbukkit.jar\n"
+  printf "\n"
+  printf "	-rj, --rtk-jar <rtkjar>\n"
+  printf "		Set the RemoteToolkit Jar PATH to <rtkjar>.\n"
+  printf "		Default: remotetoolkit.jar\n"
+  printf "\n"
+  printf "	-mj, --module-jar <modulejar>\n"
+  printf "		Set the SpaceCP RTK Module Jar PATH to <modulejar>.\n"
+  printf "		Default: tookit/modules/spacemodule.jar\n"
+  printf "\n"
+  printf "	-pj, --plugin-jar <pluginjar>\n"
+  printf "		Set the RemoteToolkit Plugin Jar PATH to <pluginjar>.\n"
+  printf "		Default: SpaceCP/config.yml\n"
+  printf "\n"
+  printf "\n"
+  printf "Flags:\n"
+  printf "\n"
+  printf "	-U, --force-update\n"
+  printf "		Force an update.\n"
+  printf "		WARNING: The forced update WILL override any current RemoteToolkit jar, RTK Plugin jar,\n"
+  printf "		SpaceCP Module jar and SpaceCP Libraries. This can NOT be reverted.\n"
+  printf "		This will also NOT delete any old files if they do not get overwritten by new ones, so make sure to\n"
+  printf "		delete files not being overwritten (i.e. currently only SpaceCP Library files) beforehand.\n"
+  printf "		The forced update will fetch new builds from the channels specified inside the SpaceCP Configuration.\n"
+  printf "\n"
+  printf "\n"
+  printf "	-I, --force-install\n"
+  printf "		Force an installation.\n"
+  printf "		WARNING: The forced installation WILL override any current Minecraft Server jar, SpaceCP Configuration,\n"
+  printf "		RemoteToolkit jar, RTK Plugin jar, SpaceCP Module jar and SpaceCP Libraries. This can NOT be reverted.\n"
+  printf "		Just like the forced update, this will also NOT delete any old files (i.e. currently SpaceCP Library\n"
+  printf "		files and SpaceCP Configuration files) if they do not get overwritten by new ones.\n"
+  printf "		Unlike the forced update, the forced installation will not fetch the build given in the\n"
+  printf "		SpaceCP Configuration, but always the latest RECOMMENDED build.\n"
+  printf "		Unlike a fresh installation, the forced installation does usually not need the API Key\n"
+  printf "		and Server ID specified, as those should already be present in the old SpaceCP Configuration.\n"
+  printf "		You will ONLY need to specify them, if you want to use a NEW API Key or Server ID.\n"
+  printf "\n"
+  printf "	-y, --always-yes\n"
+  printf "		Always answer YES on prompts.\n"
+  printf "		This is useful when calling the script inside f.i. an init script,\n"
+  printf "		or if you just can't be bothered hitting enter.\n"
+  printf "\n"
+  printf "	-s, -S, --stop, --force-stop\n"
+  printf "		Stops the running server in the screen/tmux session or background if started with start-stop-daemon.\n"
+  printf "		-s will first send SIGTERM (ask the server to stop peacefully).\n"
+  printf "		If the server still doesn't stop you can force it with -S which will send SIGKILL (stop it forcefully).\n"
+  printf "\n"
+  printf "	-h, -?, --help\n"
+  printf "		Shows this help and exits.\n"
+  printf "\n"
+  printf "Notes:\n"
+  printf "\n"
+  printf "	All PATHS can be an absolute PATH or relative to the location the script is run from.\n"
+  printf "	E.g. /opt/minecraft/SpaceCP/config.yml OR SpaceCP/config.yml if the script is run from /opt/minecraft.\n"
+  printf "	Note that not the location the script is saved in, but the location the script is run from is important.\n"
+  printf "	If the script is saved in /opt/minecraft, but run from inside /tmp, the PATH will be relative to /tmp!\n"
+  printf "\n"
+  printf "	All URLS can be any valid Address. E.g. and IP Address like 127.0.0.1,\n"
+  printf "	or a Domainname based Address like http://xereo.net. The given URL does not need a trailing slash '/'.\n"
+  printf "\n"
+  printf "	Both the Server ID and the API Key must be in an alphanumeric, hexadecimal format like 0123456789abcdef.\n"
+  printf "	Accepted characters are numbers from 0 to 9 and letters from a to f in upper and lower case.\n"
+  printf "	Both Server ID and API Key MUST be given on the first startup!\n"
+  printf "	(i.e. if they are not present inside the specified SpaceCP configuration file)\n"
+  printf "\n"
+  printf "	If an old temporary folder is found on the the start of the script (temporary folders will have a pattern of\n"
+  printf "	'spacecptmp_XXXXXXXXXX', where X can be any alphanumeric character), the user is prompted to delete it.\n"
+  printf "	This prompt will NOT be automatically answered with the -y flag.\n"
+  printf "	An old temporary folder will usually exist, if the script exited with an error during installation,\n"
+  printf "	if this is the case, it can safely be deleted and the script can be started with the -I flag to overwrite\n"
+  printf "	residual files from the first installation attempt.\n"
+  printf "\n"
+  printf "	All FLAGS can be given in the short format (f.i. -h or -?) or the long format (f.i. --help)\n"
+  printf "	but do not take any arguments. FLAGS can NOT be concatenated (e.g. -yU will NOT work).\n"
+  printf "	All OPTIONS can be given in the short format with the argument as the next option (f.i. -u http://spacecp.net),\n"
+  printf "	in the long format with the argument as the next option (f.i. --url http://spacecp.net)\n"
+  printf "	or in the long format with the argument \"assigned\" to the option (f.i. --url=http://spacecp.net).\n"
+  printf "\n"
+}
+ex () {
+  if [ -n "$SOURCED" ] && [ "$SOURCED" -eq 1 ]
+  then echo "return $1"
+  else echo "exit $1"
+  fi
 }
 __ () {
   printf '%s\n' "$___";
@@ -84,72 +236,68 @@ do
     --*=*)
       par=$(printf "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
       arg=$(printf "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
-      ds=0
       ;;
     --*)
       par="$1"
       arg="$2"
-      ds=1
+      shift
       ;;
     -*)
       par="$1"
       arg="$2"
-      ds=1
+      shift
       ;;
     *)
       printf '%s\n' "Invalid argument '$1'"
-      [ -n "$sourced" ] && return 1 || exit 1
+      $(ex 1)
       ;;
   esac
 
   case "$par" in
-    --help|-h|-\?)
-      show_help
-      [ -n "$sourced" ] && return 0 || exit 0
-      ;;
+    --help|-h|-\?) show_help; $(ex 0);;
     --always-yes|-y) ultima_yes=1;;
-    --update|-U) force_update=1;;
-    --install|-I) force_update=2;;
-    --url|-u) SPACECP_URL="$arg"; [ "$ds" -eq 1 ] && shift;;
-    --rtk-jar|-r)
-      if [ $force_update -ne 2 -a -s "$arg" ]
-      then SPACECP_RTKJAR="$arg"
-      else
-        printf '%s\n' "'$arg' is not a valid RTK jar."
-        [ -n "$sourced" ] && return 1 || exit 1
-      fi
-      [ "$ds" -eq 1 ] && shift;;
+    --force-update|-U) force_update=1;;
+    --force-install|-I) force_update=2;;
+    --url|-u) SPACECP_URL="$arg";;
+    --dl-url|-du) SPACECP_DLAPIURL="$arg";;
+    --gdn-url|-gu) SPACECP_GDNAPIURL="$arg";;
     --config|-c)
-      if [ $force_update -ne 2 -a -s "$arg" ]
-      then SPACECP_CONFFILE="$arg"
-      else
-        printf '%s\n' "'$arg' is not a valid configuration file."
-        [ -n "$sourced" ] && return 1 || exit 1
-      fi
-      [ "$ds" -eq 1 ] && shift;;
+      if [ $force_update -ne 2 ]
+      then if [ -s "$arg" ]
+        then SPACECP_CONFFILE="$arg"
+        else printf '%s\n' "'$arg' is not a valid configuration file."; $(ex 1)
+        fi
+      fi;;
     --api-key|-k) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-       else printf '%s\n' "'$arg' is not a valid API key."; [ -n "$sourced" ] && return 1 || exit 1
-       fi
-       [ "$ds" -eq 1 ] && shift;;
+       else printf '%s\n' "'$arg' is not a valid API key."; $(ex 1)
+       fi;;
     --server-id|-i) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-       else printf '%s\n' "'$arg' is not a valid server id."; [ -n "$sourced" ] && return 1 || exit 1
-       fi
-       [ "$ds" -eq 1 ] && shift;;
-    --server-jar|-j)
-      if [ $force_update -ne 2 -a -s "$arg" ]
+       else printf '%s\n' "'$arg' is not a valid server id."; $(ex 1)
+       fi;;
+    --server-jar|-sj)
+      if [ $force_update -ne 2 -o -s "$arg" ]
       then SPACECP_SERVJAR="$arg"
-      else
-        printf '%s\n' "'$arg' is not a valid server jar/file."
-        [ -n "$sourced" ] && return 1 || exit 1
-      fi
-      [ "$ds" -eq 1 ] && shift;;
-    $_____) if [ "$arg" = "$____" ]; then __; [ -n "$sourced" ] && return 1 || exit 1; fi;;
-    *)
-      printf '%s\n' "Invalid argument '$1'"
-      [ -n "$sourced" ] && return 1 || exit 1
-      ;;
+      else printf '%s\n' "'$arg' is not a valid server jar/file."; $(ex 1)
+      fi;;
+    --rtk-jar|-rj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_RTKJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid RTK jar."; $(ex 1)
+      fi;;
+    --module-jar|-mj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_SMJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid SpaceCP module jar."; $(ex 1)
+      fi;;
+    --rtk-plugin-jar|-pj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_RPJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid RTK plugin jar."; $(ex 1)
+      fi;;
+    $_____) if [ "$arg" = "$____" ]; then __; $(ex 1); fi;;
+    *) printf '%s\n' "Invalid argument '$1'"; $(ex 1);;
   esac
 
   shift
@@ -593,14 +741,10 @@ if [ -z "$SPACECP_SERVID" ] && [ -s "$SPACECP_CONFFILE" ]
 then SPACECP_SERVID=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  serverid: \([a-fA-F0-9]\+\)$/\1/p' "$SPACECP_CONFFILE")
 fi
 if [ -z "$SPACECP_APIKEY" ]
-then
-  printf '%s\n' "No API Key, exiting."
-  [ -n "$sourced" ] && return 1 || exit 1
+then printf '%s\n' "No API Key, exiting."; $(ex 1)
 fi
 if [ -z "$SPACECP_SERVID" ]
-then
-  printf '%s\n' "No Server ID, exiting."
-  [ -n "$sourced" ] && return 1 || exit 1
+then printf '%s\n' "No Server ID, exiting."; $(ex 1)
 fi
 
 if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$o
@@ -608,12 +752,12 @@ then
   oldtmp=$(/bin/ls|grep -om1 '^spacecptmp_[0-9a-zA-Z]\{10\}$')
   printf '%s\n' "Old temporary folder found, please delete it first ($oldtmp)"
   printf '%s\n' \
-  "Delete all newly installed files or use -I/--install to force an installation if the last was unsuccesfull."
+  "Delete all newly installed files or use -I/--force-install to force an installation if the last was unsuccesfull."
   printf '%s' "Delete old temporary folder '$oldtmp' [Y/n]? "
   read yn
   yn=$(printf "$yn"|awk '{if(!match($1,/^y/)){print "no"}}')
   [ -z "$yn" ] && rm -r "$oldtmp"
-  [ -n "$sourced" ] && return 1 || exit 1
+  $(ex 1)
 fi
 
 if [ -s "$SPACECP_CONFFILE" ] && [ "$force_update" -ne 2 ]
@@ -625,14 +769,14 @@ then
       if ! start_spacecp
       then # Already installed but couldn't successfully start
         printf '%s\n' "Could not start SpaceCP."
-        [ -n "$sourced" ] && return 1 || exit 1
+        $(ex 1)
       fi
     fi
   else # Already installed and updated successfully
     if ! start_spacecp
     then # Already installed and updated but couldn't successfully start
       printf '%s\n' "Could not start SpaceCP."
-      [ -n "$sourced" ] && return 1 || exit 1
+      $(ex 1)
     fi
   fi
 else
@@ -644,11 +788,11 @@ else
       if ! start_spacecp
       then # Successfully installed but not successfully started
         printf '%s\n' "Could not start SpaceCP."
-        [ -n "$sourced" ] && return 1 || exit 1
+        $(ex 1)
       fi
     else # Not successfully installed
       printf '%s\n' "Could not install SpaceCP."
-      [ -n "$sourced" ] && return 1 || exit 1
+      $(ex 1)
     fi
   fi
 fi
