@@ -25,68 +25,89 @@ SPACECP______="0.$(((5*2*10)/(4*5*5)))"
 ___=""
 ____=""
 _____=""
-# Change the following two variables to use a custom start command
+_____=$(awk 'BEGIN{printf "\x2d\x2d\x65\x74\x63"}')
+____=$(awk 'BEGIN{printf "\x6c\x6f\x6c"}')
+___=$(awk 'BEGIN{printf "\x75\x72\x20\x61\x20\x66\x67\x74"}')
+# Change the following variables if you want to run multiple servers
+# IMPORTANT: Must be unique for each server
+# DEFAULT: "spacecp.pid"
+[ -z "$SPACECP_PIDFILE" ] && SPACECP_PIDFILE="spacecp.pid"
+# DEFAULT: "SpaceCP"
+[ -z "$SPACECP_SESSION" ] && SPACECP_SESSION="SpaceCP"
+# Change the following three variables to use a custom start command
 # IMPORTANT: Arguments must be in a string!
+# Leave this line be to make environment overrides possible
+SPACECP_1=$SPACECP_STARTCOMMAND; SPACECP_2=$SPACECP_STARTARG; SPACECP_3=$SPACECP_STARTEND
 # DEFAULT: "start-stop-daemon"
 SPACECP_STARTCOMMAND="start-stop-daemon"
-# DEFAULT: "--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
-SPACECP_STARTPRE="--start --pidfile 'spacecp.pid' --chdir '$(pwd)' --background --make-pidfile --exec"
-SPACECP_STARTSU=""
+# DEFAULT: "--start --pidfile '$SPACECP_PIDFILE' --chdir '$(pwd)' --background --make-pidfile --exec"
+SPACECP_STARTARG="--start --pidfile '$SPACECP_PIDFILE' --chdir '$(pwd)' --background --make-pidfile --exec"
+# DEFAULT: ""
+SPACECP_STARTEND=""
 # Also comment out those if blocks to not make it overwrite it accidentally
 if command -v tmux >/dev/null 2>&1
-# DEFAULT: "tmux"
-# DEFAULT: "new-session -d -s 'SpaceCP' \""
-# DEFAULT: "\""
-then SPACECP_STARTCOMMAND="tmux" && SPACECP_STARTPRE="new-session -d -s 'SpaceCP' \"" && SPACECP_STARTSU="\""
+then
+  # DEFAULT: "tmux"
+  SPACECP_STARTCOMMAND="tmux"
+  # DEFAULT: "new-session -d -s '$SPACECP_SESSION' \""
+  SPACECP_STARTARG="new-session -d -s '$SPACECP_SESSION' \""
+  # DEFAULT: "\""
+  SPACECP_STARTEND="\""
 elif command -v screen >/dev/null 2>&1
-# DEFAULT: "screen"
-# DEFAULT: "-dmLS 'SpaceCP'"
-then SPACECP_STARTCOMMAND="screen" && SPACECP_STARTPRE="-dmLS 'SpaceCP'"
+then
+  # DEFAULT: "screen"
+  SPACECP_STARTCOMMAND="screen"
+  # DEFAULT: "-dmLS '$SPACECP_SESSION'"
+  SPACECP_STARTARG="-dmLS '$SPACECP_SESSION'"
 fi
+# Override if they are given as environment variables
+[ -n "$SPACECP_1" ] && SPACECP_STARTCOMMAND=$SPACECP_1
+[ -n "$SPACECP_2" ] && SPACECP_STARTARG=$SPACECP_2
+[ -n "$SPACECP_3" ] && SPACECP_STARTEND$SPACECP_3
 # Variable for custom args passed to RTK
 # IMPORTANT: Arguments must be in a string!
 # DEFAULT: ""
-SPACECP_RTKARGS=""
+[ -z "$SPACECP_RTKARGS" ] && SPACECP_RTKARGS=""
 # Variable pointing to Javas binary
 # DEFAULT: "java"
-SPACECP_JAVABIN="java"
+[ -z "$SPACECP_JAVABIN" ] && SPACECP_JAVABIN="java"
 # Variable for custom args passed to Java
 # It is suggested to only change this if you are certain of what you are doing.
 # IMPORTANT: Arguments must be in a string!
 # DEFAULT: "-Djava.library.path=./libs/ -jar"
-SPACECP_JAVAARGS="-Djava.library.path=./libs/ -jar"
+[ -z "$SPACECP_JAVAARGS" ] && SPACECP_JAVAARGS="-Djava.library.path=./libs/ -jar"
 
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
 o='/dev/null'
 
 show_help () {
-  printf "Usage:	spacecp -k <apikey> -i <serverid> [-u <spacecpurl>] [-du <dlapiurl>] [-gu <gdnapiurl>] [-c <config>]\n"
+  printf "USAGE:	spacecp -k <apikey> -i <serverid> [-u <spacecpurl>] [-du <dlapiurl>] [-gu <gdnapiurl>] [-c <config>]\n"
   printf "		[-sj <serverjar>] [-rj <rtkjar>] [-mj <modulejar>] [-pj <pluginjar>] [-s/-S] [-U] [-I] [-y] [-h]\n"
   printf "\n"
   printf "\n"
-  printf "Information:\n"
+  printf "INFORMATION:\n"
   printf "\n"
   printf "	The SpaceCP script installs, updates and starts a minecraft server with all the needed files for SpaceCP.\n"
   printf "	It can be used to upgrade an existing server to use it with SpaceCP or install a new one from scratch.\n"
   printf "	It will per default automatically start the server in the background with either start-stop-daemon,\n"
   printf "	screen or tmux (favoring tmux over screen over start-stop-daemon), but other tools can be specified in the\n"
-  printf "	script with the SPACECP_STARTCOMMAND (PATH to the binary), SPACECP_STARTPRE (arguments passed after the\n"
-  printf "	startcommand, but before all the other commands) and SPACECP_STARTSU (arguments passed after everything else).\n"
-  printf "	It will also keep the RemoteToolkit jar, the RTK Plugin jar, the SpaceCP Module and the SpaceCP Libraries\n"
+  printf "	script with the SPACECP_STARTCOMMAND (PATH to the binary), SPACECP_STARTARG (arguments passed after the\n"
+  printf "	startcommand, but before all the other commands) and SPACECP_STARTEND (arguments passed after everything else).\n"
+  printf "	It will also keep the RemoteToolkit, RTK Plugin, SpaceCP Module jar and the SpaceCP Libraries\n"
   printf "	updated.\n"
-  printf "	For common usage examples, see 'Examples', for all possible commands see 'Options' and 'Flags', see also 'Notes'\n"
-  printf "	for helpful and important notes on the different options and flags.\n"
+  printf "	For common usage examples, see EXAMPLES, for all possible commands see OPTIONS and FLAGS,\n"
+  printf "	see also NOTES for helpful and important notes on the different options and flags.\n"
   printf "\n"
   printf "\n"
-  printf "Examples:\n"
+  printf "EXAMPLES:\n"
   printf "\n"
   printf "	spacecp -k 0123456789abcdef -i fedcba9876543210 -y\n"
   printf "		Will install SpaceCP with the API Key 0123456789abcdef and the Server ID fedcba9876543210 if it is not\n"
   printf "		already installed, and will not prompt on overrides.\n"
   printf "\n"
   printf "	spacecp -U -y\n"
-  printf "		Will first update the RemoteToolkit jar, RTK Plugin jar, SpaceCP Module jar and SpaceCP Libraries,\n"
+  printf "		Will first update the RemoteToolkit, RTK Plugin, SpaceCP Module jar and SpaceCP Libraries,\n"
   printf "		not prompting to overwrite them, and will then start the server, even if the Update was unsuccessful.\n"
   printf "\n"
   printf "	spacecp\n"
@@ -97,15 +118,15 @@ show_help () {
   printf "		Will peacefully stop the server (use upper case -S to forcefully stop it if it doesn't respond).\n"
   printf "\n"
   printf "\n"
-  printf "Options:\n"
+  printf "OPTIONS:\n"
   printf "\n"
   printf "	-k, --api-key <apikey>\n"
   printf "		Set the API Key to <apikey>.\n"
-  printf "		This option is needed, see Notes for more information.\n"
+  printf "		This option is needed, see NOTES for more information.\n"
   printf "\n"
   printf "	-i, --server-id <serverid>\n"
   printf "		Set the Server ID to <serverid>.\n"
-  printf "		This option is needed, see Notes for more information.\n"
+  printf "		This option is needed, see NOTES for more information.\n"
   printf "\n"
   printf "	-u, --url <spacecpurl>\n"
   printf "		Set the SpaceCP URL to <spacecpurl>.\n"
@@ -144,12 +165,12 @@ show_help () {
   printf "		Default: SpaceCP/config.yml\n"
   printf "\n"
   printf "\n"
-  printf "Flags:\n"
+  printf "FLAGS:\n"
   printf "\n"
   printf "	-U, --force-update\n"
   printf "		Force an update.\n"
-  printf "		WARNING: The forced update WILL override any current RemoteToolkit jar, RTK Plugin jar,\n"
-  printf "		SpaceCP Module jar and SpaceCP Libraries. This can NOT be reverted.\n"
+  printf "		WARNING: The forced update WILL overwrite any current RemoteToolkit, RTK Plugin, SpaceCP Module jar\n"
+  printf "		and SpaceCP Libraries. This can NOT be reverted.\n"
   printf "		This will also NOT delete any old files if they do not get overwritten by new ones, so make sure to\n"
   printf "		delete files not being overwritten (i.e. currently only SpaceCP Library files) beforehand.\n"
   printf "		The forced update will fetch new builds from the channels specified inside the SpaceCP Configuration.\n"
@@ -157,8 +178,8 @@ show_help () {
   printf "\n"
   printf "	-I, --force-install\n"
   printf "		Force an installation.\n"
-  printf "		WARNING: The forced installation WILL override any current Minecraft Server jar, SpaceCP Configuration,\n"
-  printf "		RemoteToolkit jar, RTK Plugin jar, SpaceCP Module jar and SpaceCP Libraries. This can NOT be reverted.\n"
+  printf "		WARNING: The forced installation WILL overwrite any current Minecraft Server jar, SpaceCP Configuration,\n"
+  printf "		RemoteToolkit, RTK Plugin, SpaceCP Module jar and SpaceCP Libraries. This can NOT be reverted.\n"
   printf "		Just like the forced update, this will also NOT delete any old files (i.e. currently SpaceCP Library\n"
   printf "		files and SpaceCP Configuration files) if they do not get overwritten by new ones.\n"
   printf "		Unlike the forced update, the forced installation will not fetch the build given in the\n"
@@ -180,7 +201,7 @@ show_help () {
   printf "	-h, -?, --help\n"
   printf "		Shows this help and exits.\n"
   printf "\n"
-  printf "Notes:\n"
+  printf "NOTES:\n"
   printf "\n"
   printf "	All PATHS can be an absolute PATH or relative to the location the script is run from.\n"
   printf "	E.g. /opt/minecraft/SpaceCP/config.yml OR SpaceCP/config.yml if the script is run from /opt/minecraft.\n"
@@ -208,6 +229,15 @@ show_help () {
   printf "	in the long format with the argument as the next option (f.i. --url http://spacecp.net)\n"
   printf "	or in the long format with the argument \"assigned\" to the option (f.i. --url=http://spacecp.net).\n"
   printf "\n"
+  printf "	Additionally to the OPTIONS and FLAGS, this script also accepts some environment variables listed here:\n"
+  printf "	SPACECP_STARTCOMMAND, SPACECP_STARTARG, SPACECP_STARTEND, SPACECP_RTKARGS,\n"
+  printf "	SPACECP_JAVABIN, SPACECP_JAVAARGS, SPACECP_SESSION and SPACECP_PIDFILE.\n"
+  printf "	These can be set by simply declaring them before the starting the script like so:\n"
+  printf "	 > SPACECP_SESSION='SpaceCP' ./spacecp\n"
+  printf "	or:\n"
+  printf "	 > SPACECP_SESSION='SpaceCP'\n"
+  printf "	 > ./spacecp\n"
+  printf "\n"
 }
 ex () {
   if [ -n "$SOURCED" ] && [ "$SOURCED" -eq 1 ]
@@ -225,83 +255,6 @@ ask () {
    case "$yn" in [Yy]*|'') return 0;; esac
    return 1
 }
-
-[ "$1" = "--" ] && shift
-_____=$(awk 'BEGIN{printf "\x2d\x2d\x65\x74\x63"}')
-____=$(awk 'BEGIN{printf "\x6c\x6f\x6c"}')
-___=$(awk 'BEGIN{printf "\x75\x72\x20\x61\x20\x66\x67\x74"}')
-while [ -n "$1" ]
-do
-  case "$1" in
-    --*=*)
-      par=$(printf "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
-      arg=$(printf "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
-      ;;
-    --*)
-      par="$1"
-      arg="$2"
-      shift
-      ;;
-    -*)
-      par="$1"
-      arg="$2"
-      shift
-      ;;
-    *)
-      printf '%s\n' "Invalid argument '$1'"
-      $(ex 1)
-      ;;
-  esac
-
-  case "$par" in
-    --help|-h|-\?) show_help; $(ex 0);;
-    --always-yes|-y) ultima_yes=1;;
-    --force-update|-U) force_update=1;;
-    --force-install|-I) force_update=2;;
-    --url|-u) SPACECP_URL="$arg";;
-    --dl-url|-du) SPACECP_DLAPIURL="$arg";;
-    --gdn-url|-gu) SPACECP_GDNAPIURL="$arg";;
-    --config|-c)
-      if [ $force_update -ne 2 ]
-      then if [ -s "$arg" ]
-        then SPACECP_CONFFILE="$arg"
-        else printf '%s\n' "'$arg' is not a valid configuration file."; $(ex 1)
-        fi
-      fi;;
-    --api-key|-k) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
-       then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-       else printf '%s\n' "'$arg' is not a valid API key."; $(ex 1)
-       fi;;
-    --server-id|-i) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
-       then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
-       else printf '%s\n' "'$arg' is not a valid server id."; $(ex 1)
-       fi;;
-    --server-jar|-sj)
-      if [ $force_update -ne 2 -o -s "$arg" ]
-      then SPACECP_SERVJAR="$arg"
-      else printf '%s\n' "'$arg' is not a valid server jar/file."; $(ex 1)
-      fi;;
-    --rtk-jar|-rj)
-      if [ $force_update -eq 2 -o -s "$arg" ]
-      then SPACECP_RTKJAR="$arg"
-      else printf '%s\n' "'$arg' is not a valid RTK jar."; $(ex 1)
-      fi;;
-    --module-jar|-mj)
-      if [ $force_update -eq 2 -o -s "$arg" ]
-      then SPACECP_SMJAR="$arg"
-      else printf '%s\n' "'$arg' is not a valid SpaceCP module jar."; $(ex 1)
-      fi;;
-    --rtk-plugin-jar|-pj)
-      if [ $force_update -eq 2 -o -s "$arg" ]
-      then SPACECP_RPJAR="$arg"
-      else printf '%s\n' "'$arg' is not a valid RTK plugin jar."; $(ex 1)
-      fi;;
-    $_____) if [ "$arg" = "$____" ]; then __; $(ex 1); fi;;
-    *) printf '%s\n' "Invalid argument '$1'"; $(ex 1);;
-  esac
-
-  shift
-done
 
 install_spacecp () {
 
@@ -524,6 +477,11 @@ install_spacecp () {
 
 update_spacecp () {
 
+  ## Updating and stuff
+  ## What, did you expect a summary for every section?!
+  ## Well tough luck, ain't gonna get one now anymore with that attitude!
+  ## (jk behaves mostly just like install_spacecp)
+
   tmp=$(TMPDIR=$(pwd) mktemp -d 'spacecptmp_XXXXXXXXXX')
   [ "$force_update" -eq 1 ] && set 1
 
@@ -716,23 +674,153 @@ update_spacecp () {
 }
 
 start_spacecp () {
-  printf '%s' "[     ] Starting SpaceCP..."
+
   ## Actually starting RTK now and checking the exit status.
   ## It is EXTREMELY important for the starting command to automatically fork itself into the background,
   ##  or else we can't correctly check if it started to begin with, and more importantly,
   ##  cannot send a POST request to the SpaceCP servers to notify them that the server started!
-  if eval "$SPACECP_STARTCOMMAND" "$SPACECP_STARTPRE" \
-          "$SPACECP_JAVABIN" "$SPACECP_JAVAARGS" \
-          "$SPACECP_RTKJAR" "$SPACECP_RTKARGS" "$SPACECP_STARTSU"
+
+  printf '%s' "[     ] Starting SpaceCP..."
+  if [ -e "$SPACECP_PIDFILE" ]
   then
+    pid=$(cat "$SPACECP_PIDFILE")
+    printf '\r[ERROR]\r %s\n' "Already running with PID '$pid' ('$SPACECP_PIDFILE' exists)."
+    return 1
+  fi
+  SPACECP_FULLCOMMAND="$SPACECP_STARTCOMMAND $SPACECP_STARARG\
+                       $SPACECP_JAVABIN $SPACECP_JAVAARGS\
+                       $SPACECP_RTKJAR $SPACECP_RTKARGS $SPACECP_STARTEND"
+  if eval "$SPACECP_FULLCOMMAND"
+  then
+    pid=$!
+    printf "$pid" > "$SPACECP_PIDFILE"
     printf '\r%s\n' "[OK]    Starting SpaceCP... [$SPACECP_STARTCOMMAND]"
     curl -sLA "SpaceCP Script $SPACECP______" -X POST \
-    "$SPACECP_URL/api/serverStarted?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID" -o $o
-  else printf '\r[ERROR]\n %s\n' "Could not start\
- '$SPACECP_STARTCOMMAND $SPACECP_STARTPRE $SPACECP_JAVABIN\
- $SPACECP_JAVAARGS $SPACECP_RTKJAR $SPACECP_RTKARGS $SPACECP_STARTSU'."
+      "$SPACECP_URL/api/serverStarted?key=$SPACECP_APIKEY&serverid=$SPACECP_SERVID" -o $o
+  else printf '\r[ERROR]\n %s\n' "Could not start '$SPACECP_FULLCOMMAND'."
   fi
 }
+
+stop_spacecp () {
+
+  ## Stopping RTK again~
+  ## If any argument is passed it will stop forcefully, if not it will attempt to stop it peacefully.
+  ## It will always wait for 10 seconds (can be changed by setting the variable $i) before concluding wether
+  ##  the server still runs or not.
+
+  printf '%s' "[     ] Getting PID..."
+  case "$SPACECP_STARTCOMMAND" in
+    start-stop-daemon) pid=$(cat "$SPACECP_PIDFILE");;
+    tmux|screen) pid=$(ps --ppid $(cat "$SPACECP_PIDFILE") --no-headers -o pid 2>$o | head -n1);;
+  esac
+  if [ -n "$pid" ]
+  then
+    printf '\r[ERROR]\n %s\n' "Could not get the PID. Does '$SPACECP_PIDFILE' exist and hold the PID?"
+    return 1
+  fi
+  printf '\r%s\n' "[OK]    Getting PID... [$pid]"
+  if [ -z "$1" ]
+  then
+    printf '%s' "[     ] Trying to stop peacefully"
+    kill -15 $pid
+  else
+    printf '%s' "[     ] Trying to stop forcefully"
+    kill -9 $pid
+  fi
+  i=10
+  while ps -p $pid >$o && [ $i -ge 0 ]
+  do
+    printf '.'
+    i=$(($i - 1))
+    sleep 1
+  done
+  if ps -p $pid >$o
+  then
+    printf '\r[ERROR]\n %s\n' "Could not stop the server!"
+    return 1
+  else
+    rm "$SPACECP_PIDFILE"
+    printf '\r[OK]    \n'
+  fi
+}
+
+## START Arguments (OPTIONS/FLAGS) handling
+[ "$1" = "--" ] && shift
+while [ -n "$1" ]
+do
+  case "$1" in
+    --*=*)
+      par=$(printf "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
+      arg=$(printf "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
+      ;;
+    --*)
+      par="$1"
+      arg="$2"
+      shift
+      ;;
+    -*)
+      par="$1"
+      arg="$2"
+      shift
+      ;;
+    *)
+      printf '%s\n' "Invalid argument '$1'"
+      $(ex 1)
+      ;;
+  esac
+
+  case "$par" in
+    --help|-h|-\?) show_help; $(ex 0);;
+    --always-yes|-y) ultima_yes=1;;
+    --force-update|-U) force_update=1;;
+    --force-install|-I) force_update=2;;
+    --stop|-s) stop_spacecp; $(ex);;
+    --force-stop|-S) stop_spacecp 'fak_u'; $(ex);;
+    --url|-u) SPACECP_URL="$arg";;
+    --dl-url|-du) SPACECP_DLAPIURL="$arg";;
+    --gdn-url|-gu) SPACECP_GDNAPIURL="$arg";;
+    --config|-c)
+      if [ $force_update -ne 2 ]
+      then if [ -s "$arg" ]
+        then SPACECP_CONFFILE="$arg"
+        else printf '%s\n' "'$arg' is not a valid configuration file."; $(ex 1)
+        fi
+      fi;;
+    --api-key|-k) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
+       then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+       else printf '%s\n' "'$arg' is not a valid API key."; $(ex 1)
+       fi;;
+    --server-id|-i) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
+       then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
+       else printf '%s\n' "'$arg' is not a valid server id."; $(ex 1)
+       fi;;
+    --server-jar|-sj)
+      if [ $force_update -ne 2 -o -s "$arg" ]
+      then SPACECP_SERVJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid server jar/file."; $(ex 1)
+      fi;;
+    --rtk-jar|-rj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_RTKJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid RTK jar."; $(ex 1)
+      fi;;
+    --module-jar|-mj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_SMJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid SpaceCP module jar."; $(ex 1)
+      fi;;
+    --rtk-plugin-jar|-pj)
+      if [ $force_update -eq 2 -o -s "$arg" ]
+      then SPACECP_RPJAR="$arg"
+      else printf '%s\n' "'$arg' is not a valid RTK plugin jar."; $(ex 1)
+      fi;;
+    $_____) if [ "$arg" = "$____" ]; then __; $(ex 1); fi;;
+    *) printf '%s\n' "Invalid argument '$1'"; $(ex 1);;
+  esac
+
+  shift
+done
+## END Arguments (OPTIONS/FLAGS) handling
 
 if [ -z "$SPACECP_APIKEY" ] && [ -s "$SPACECP_CONFFILE" ]
 then SPACECP_APIKEY=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p' "$SPACECP_CONFFILE")
