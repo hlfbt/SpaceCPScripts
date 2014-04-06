@@ -63,7 +63,7 @@ fi
 # Override if they are given as environment variables
 [ -n "$SPACECP_1" ] && SPACECP_STARTCOMMAND=$SPACECP_1
 [ -n "$SPACECP_2" ] && SPACECP_STARTARG=$SPACECP_2
-[ -n "$SPACECP_3" ] && SPACECP_STARTEND$SPACECP_3
+[ -n "$SPACECP_3" ] && SPACECP_STARTEND=$SPACECP_3
 # Variable for custom args passed to RTK
 # IMPORTANT: Arguments must be in a string!
 # DEFAULT: ""
