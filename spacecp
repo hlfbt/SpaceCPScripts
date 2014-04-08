@@ -86,7 +86,7 @@ show_help () {
   printf "		[-sj <serverjar>] [-rj <rtkjar>] [-mj <modulejar>] [-pj <pluginjar>] [-s/-S] [-U] [-I] [-y] [-h]\n"
   printf "\n"
   printf "\n"
-  printf "INFORMATION:\n"
+  printf "DESCRIPTION:\n"
   printf "\n"
   printf "	The SpaceCP script installs, updates and starts a minecraft server with all the needed files for SpaceCP.\n"
   printf "	It can be used to upgrade an existing server to use it with SpaceCP or install a new one from scratch.\n"
@@ -237,6 +237,8 @@ show_help () {
   printf "	or:\n"
   printf "	 > SPACECP_SESSION='SpaceCP'\n"
   printf "	 > ./spacecp\n"
+  printf "\n"
+  printf "DEPENDENCIES:	openssl, curl, coreutils, sed, awk and sh or any sh compatible shell"
   printf "\n"
 }
 ex () {
