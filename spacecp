@@ -1,5 +1,35 @@
 #!/bin/sh
 
+  ######################################################################
+ ######################################################################
+ ##                                                                  ##
+ ##       _____                            ______ ____               ##
+ ##      / ___/ ____   ____ _ _____ ___   / ____// __ \        ,:    ##
+ ##      \__ \ / __ \ / __ `// ___// _ \ / /    / /_/ /      ,' |    ##
+ ##     ___/ // /_/ // /_/ // /__ /  __// /___ / ____/      /   :    ##
+ ##    /____// .___/ \__,_/ \___/ \___/ \____//_/        __'   /     ##
+ ##         /_/                                          \/ />/      ##
+ ##                                                      / <//_\     ##
+ ##    Copyright XereoNet 2014                        __/   /        ##
+ ##    http://xereo.net                               )'-. /         ##
+ ##    All rights reserved                            ./  :\         ##
+ ##                                                    /.' '         ##
+ ##    Author: Alexander Schulz                      '/'             ##
+ ##    Web   : https://nope.bz/                      +               ##
+ ##    Github: https://github.com/teh-al3x          '                ##
+ ##    Email : alex@nope.bz                       `.                 ##
+ ##                                           .-"-                   ##
+ ##                                          (    |                  ##
+ ##                                       . .-'  '.                  ##
+ ##                                      ( (.   )8:                  ##
+ ##                                  .'    / (_  )                   ##
+ ##                                   _. :(.   )8P  `                ##
+ ##                               .  (  `-' (  `.   .                ##
+ ##                                .  :  (   .a8a)                   ##
+ ##                                                                  ##
+ ######################################################################
+######################################################################
+
 # Dem keys!!
 SPACECP_APIKEY=""
 # Mmh more tasty variables...
@@ -79,9 +109,10 @@ fi
 
 ultima_yes=0 # Never say no! ...or was it never...
 force_update=0 # 0 nothing, 1 update, 2 install
-o='/dev/null'
+o='/dev/null' # Where useless commands output is redirected to, /dev/null is very much recommended.
+              # If debugging is needed, rather set the -x flag (sh -x spacecp or add set -x und the shebang).
 
-show_help () {
+show_help () { # Big ass help/documentation
   printf "USAGE:	spacecp -k <apikey> -i <serverid> [-u <spacecpurl>] [-du <dlapiurl>] [-gu <gdnapiurl>] [-c <config>]\n"
   printf "		[-sj <serverjar>] [-rj <rtkjar>] [-mj <modulejar>] [-pj <pluginjar>] [-s/-S] [-U] [-I] [-y] [-h]\n"
   printf "\n"
@@ -238,10 +269,12 @@ show_help () {
   printf "	 > SPACECP_SESSION='SpaceCP'\n"
   printf "	 > ./spacecp\n"
   printf "\n"
-  printf "DEPENDENCIES:	openssl, curl, coreutils, sed, awk and sh or any sh compatible shell"
+  printf "DEPENDENCIES:\n"
+  printf "\n"
+  printf "	openssl, curl, unzip, coreutils, sed, start-stop-daemon or screen or tmux, and sh or any sh compatible shell\n"
   printf "\n"
 }
-ex () {
+ex () { # Exit or return depending on if the script is being sourced or executed
   if [ -n "$SOURCED" ] && [ "$SOURCED" -eq 1 ]
   then echo "return $1"
   else echo "exit $1"
@@ -250,7 +283,7 @@ ex () {
 __ () {
   printf '%s\n' "$___";
 }
-ask () {
+ask () { # Interactivity is important!
    printf '%s [Y/n] ' "$1"
    [ "$ultima_yes" -eq 1 ] && printf "Y\n" && return 0
    read yn
@@ -262,7 +295,7 @@ install_spacecp () {
 
   ## Installing SpaceCP
   ## Forces install (overwrites) if any argument is given.
-
+  ## Will not overwrite anything if not forced.
 
   tmp=$(TMPDIR=$(pwd) mktemp -d 'spacecptmp_XXXXXXXXXX')
   [ "$force_update" -eq 2 ] && set 1
@@ -746,6 +779,16 @@ stop_spacecp () {
   fi
 }
 
+## Check if all dependencies are met!
+for dep in curl openssl awk sed unzip ps printf
+do
+  if ! command -v $dep
+  then
+    echo "Dependency not met: $dep"
+    echo "Please install the corresponding package first."
+  fi
+done
+
 ## START Arguments (OPTIONS/FLAGS) handling
 [ "$1" = "--" ] && shift
 while [ -n "$1" ]
@@ -824,6 +867,7 @@ do
 done
 ## END Arguments (OPTIONS/FLAGS) handling
 
+## Check for API Key and Server ID
 if [ -z "$SPACECP_APIKEY" ] && [ -s "$SPACECP_CONFFILE" ]
 then SPACECP_APIKEY=$(sed -n '/^spacecp:$/,/^[^ ]\+/s/^  apikey: \([a-fA-F0-9]\+\)$/\1/p' "$SPACECP_CONFFILE")
 fi
@@ -837,6 +881,8 @@ if [ -z "$SPACECP_SERVID" ]
 then printf '%s\n' "No Server ID, exiting."; $(ex 1)
 fi
 
+## Check if any old temporary folders from previous installations or updates still exist
+## (hints to a failed installation/update)
 if /bin/ls | grep "^spacecptmp_[0-9a-zA-Z]\{10\}$" >$o
 then
   oldtmp=$(/bin/ls|grep -om1 '^spacecptmp_[0-9a-zA-Z]\{10\}$')
@@ -850,37 +896,38 @@ then
   $(ex 1)
 fi
 
+## Actually start the whole isntallation/updating/starting process
 if [ -s "$SPACECP_CONFFILE" ] && [ "$force_update" -ne 2 ]
-then
+then # A configuration is present and an installation is not being forced (start normally)
   if ! update_spacecp
-  then # Already installed but couldn't successfully update
+  then # Couldn't successfully update
     if ask "Could not update SpaceCP. Start anyway?"
     then
       if ! start_spacecp
-      then # Already installed but couldn't successfully start
+      then # Couldn't successfully update nor start (broken update?)
         printf '%s\n' "Could not start SpaceCP."
         $(ex 1)
       fi
     fi
-  else # Already installed and updated successfully
+  else # Updated successfully (an update is also successful if no new updates were found)
     if ! start_spacecp
-    then # Already installed and updated but couldn't successfully start
+    then # Updated successfully but could not start
       printf '%s\n' "Could not start SpaceCP."
       $(ex 1)
     fi
   fi
-else
+else # No configuration is present or an installation is being forced
   if ask "No SpaceCP configuration found. Install SpaceCP?"
-  then
+  then # Install SpaceCP
     if install_spacecp
     then # Successfully installed
       printf '%s\n' "SpaceCP installation succesfull. Starting SpaceCP for the first time."
       if ! start_spacecp
-      then # Successfully installed but not successfully started
+      then # Successfully installed but couldn't start (broken installation?)
         printf '%s\n' "Could not start SpaceCP."
         $(ex 1)
       fi
-    else # Not successfully installed
+    else # Couldn't successfully install
       printf '%s\n' "Could not install SpaceCP."
       $(ex 1)
     fi
