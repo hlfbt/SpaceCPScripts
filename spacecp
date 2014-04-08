@@ -48,7 +48,7 @@ SPACECP_SMJAR="toolkit/modules/spacemodule.jar"
 SPACECP_RPJAR="plugins/rtkplugin.jar"
 # glaring display last night, eh?
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
-# well fuck you then, if you're not gonna talk you might as well just go UGH
+# pls respond ;-;
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
 SPACECP______="0.$(((5*2*10)/(4*5*5)))"
 [ "$_" != "$0" ] && SOURCED=0 || SOURCED=1
