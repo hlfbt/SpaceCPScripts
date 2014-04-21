@@ -723,7 +723,7 @@ start_spacecp () {
     printf '\r[ERROR]\r %s\n' "Already running with PID '$pid' ('$SPACECP_PIDFILE' exists)."
     return 1
   fi
-  SPACECP_FULLCOMMAND="$SPACECP_STARTCOMMAND $SPACECP_STARARG\
+  SPACECP_FULLCOMMAND="$SPACECP_STARTCOMMAND $SPACECP_STARTARG\
                        $SPACECP_JAVABIN $SPACECP_JAVAARGS\
                        $SPACECP_RTKJAR $SPACECP_RTKARGS $SPACECP_STARTEND"
   if eval "$SPACECP_FULLCOMMAND"
