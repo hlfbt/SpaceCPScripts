@@ -783,7 +783,7 @@ stop_spacecp () {
 ## Check if all dependencies are met!
 for dep in curl openssl awk sed unzip ps printf
 do
-  if ! command -v $dep
+  if ! command -v $dep >$o
   then
     echo "Dependency not met: $dep"
     echo "Please install the corresponding package first."
