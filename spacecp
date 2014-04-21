@@ -8,7 +8,7 @@
  ##      \__ \ / __ \ / __ `// ___// _ \ / /    / /_/ /      ,' |    ##
  ##     ___/ // /_/ // /_/ // /__ /  __// /___ / ____/      /   :    ##
  ##    /____// .___/ \__,_/ \___/ \___/ \____//_/        __'   /     ##
- ##         /_/                                          \/ />/      ##
+ ##    v0.2 /_/                                          \/ />/      ##
  ##                                                      / <//_\     ##
  ##    Copyright XereoNet 2014                        __/   /        ##
  ##    http://xereo.net                               )'-. /         ##
@@ -51,7 +51,7 @@ SPACECP_RPJAR="plugins/rtkplugin.jar"
 SPACECP_DLAPIURL="http://dl.api.xereo.net/v1"
 # pls respond ;-;
 SPACECP_GDNAPIURL="http://gdn.api.xereo.net/v1"
-SPACECP______="0.$(((5*2*10)/(4*5*5)))"
+SPACECP______="0.$(((5*4*10)/(4*5*5)))"
 [ "$_" != "$0" ] && SOURCED=0 || SOURCED=1
 ___=""
 ____=""
