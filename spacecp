@@ -30,6 +30,7 @@
  ######################################################################
 ######################################################################
 
+shesc(){ awk '{gsub(/(\x27|\$|&|>|<|`|\(|\)|\||!|;|:|*|\{|}|\[|]|=| |"|\\)/,"\\\\&");print}' /dev/stdin|head -c-1;}
 # Dem keys!!
 SPACECP_APIKEY=""
 # Mmh more tasty variables...
@@ -70,8 +71,8 @@ ___=$(awk 'BEGIN{printf "\x75\x72\x20\x61\x20\x66\x67\x74"}')
 SPACECP_1=$SPACECP_STARTCOMMAND; SPACECP_2=$SPACECP_STARTARG; SPACECP_3=$SPACECP_STARTEND
 # DEFAULT: "start-stop-daemon"
 SPACECP_STARTCOMMAND="start-stop-daemon"
-# DEFAULT: "--start --pidfile '$SPACECP_PIDFILE' --chdir '$(pwd)' --background --make-pidfile --exec"
-SPACECP_STARTARG="--start --pidfile '$SPACECP_PIDFILE' --chdir '$(pwd)' --background --make-pidfile --exec"
+# DEFAULT: "--start --pidfile '$SPACECP_PIDFILE' --chdir $(pwd | shesc) --background --make-pidfile --exec"
+SPACECP_STARTARG="--start --pidfile '$SPACECP_PIDFILE' --chdir $(pwd | shesc) --background --make-pidfile --exec"
 # DEFAULT: ""
 SPACECP_STARTEND=""
 # Also comment out those if blocks to not make it overwrite it accidentally
