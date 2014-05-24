@@ -761,8 +761,14 @@ start_spacecp () {
   if [ -e "$SPACECP_PIDFILE" ]
   then
     pid=$(cat "$SPACECP_PIDFILE")
-    printf '\r[ERROR]\r %s\n' "Already running with PID '$pid' ('$SPACECP_PIDFILE' exists)."
-    return 1
+    if ps -p $pid 2>$o >$o
+    then
+      printf '\r[ERROR]\r %s\n' "Already running with PID '$pid' ('$SPACECP_PIDFILE' exists)."
+      return 1
+    else
+      printf '\r[WARN ]\r %s\n' "PID file found '$SPACECP_PIDFILE' exists but '$pid' isn't running. Did it crash?"
+      rm "$SPACECP_PIDFILE"
+    fi
   fi
   SPACECP_FULLCOMMAND="$SPACECP_STARTCOMMAND $SPACECP_STARTARG\
                        $SPACECP_JAVABIN $SPACECP_JAVAARGS\
@@ -840,23 +846,23 @@ do
     --*=*)
       par=$(printf "$1"|sed 's/^\([^=]\)\+=.*$/\1/')
       arg=$(printf "$1"|sed 's/^[^=]\+=\(.*\)$/\1/')
-      ;;
+      ds='';;
     --*)
       par="$1"
       arg="$2"
-      ;;
+      ds=' ';;
     -*)
       par="$1"
       arg="$2"
-      ;;
+      ds=' ';;
     help|start|stop|force-stop|update|install)
       par="$1"
       arg="$2"
-      ;;
+      ds='';;
     *)
       printf '%s\n' "Invalid argument '$1'"
       $(ex 1)
-      ;;
+      ds='';;
   esac
 
   case "$par" in
@@ -867,9 +873,9 @@ do
     install|--force-install|-I) force_update=2;;
     stop|--stop|-s) stop_spacecp; $(ex);;
     force-stop|--force-stop|-S) stop_spacecp 'fak_u'; $(ex);;
-    --url|-u) SPACECP_URL="$arg"; shift;;
-    --dl-url|-du) SPACECP_DLAPIURL="$arg"; shift;;
-    --gdn-url|-gu) SPACECP_GDNAPIURL="$arg"; shift;;
+    --url|-u) SPACECP_URL="$arg"; [ -n "$ds" ] && shift;;
+    --dl-url|-du) SPACECP_DLAPIURL="$arg"; [ -n "$ds" ] && shift;;
+    --gdn-url|-gu) SPACECP_GDNAPIURL="$arg"; [ -n "$ds" ] && shift;;
     --config|-c)
       if [ $force_update -ne 2 ]
       then if [ -s "$arg" ]
@@ -877,41 +883,41 @@ do
         else printf '%s\n' "'$arg' is not a valid configuration file."; $(ex 1)
         fi
       fi
-      shift;;
+      [ -n "$ds" ] && shift;;
     --api-key|-k) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_APIKEY=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid API key."; $(ex 1)
        fi
-       shift;;
+       [ -n "$ds" ] && shift;;
     --server-id|-i) if printf "$arg"|awk '{if(!match($1,"^[0-9a-fA-F]+$")){exit 2}}' >$o
        then SPACECP_SERVID=$(printf '%s' "$arg" | tr '[:upper:]' '[:lower:]')
        else printf '%s\n' "'$arg' is not a valid server id."; $(ex 1)
        fi
-       shift;;
+       [ -n "$ds" ] && shift;;
     --server-jar|-sj)
       if [ $force_update -ne 2 -o -s "$arg" ]
       then SPACECP_SERVJAR="$arg"
       else printf '%s\n' "'$arg' is not a valid server jar/file."; $(ex 1)
       fi
-      shift;;
+      [ -n "$ds" ] && shift;;
     --rtk-jar|-rj)
       if [ $force_update -eq 2 -o -s "$arg" ]
       then SPACECP_RTKJAR="$arg"
       else printf '%s\n' "'$arg' is not a valid RTK jar."; $(ex 1)
       fi
-      shift;;
+      [ -n "$ds" ] && shift;;
     --module-jar|-mj)
       if [ $force_update -eq 2 -o -s "$arg" ]
       then SPACECP_SMJAR="$arg"
       else printf '%s\n' "'$arg' is not a valid SpaceCP module jar."; $(ex 1)
       fi
-      shift;;
+      [ -n "$ds" ] && shift;;
     --rtk-plugin-jar|-pj)
       if [ $force_update -eq 2 -o -s "$arg" ]
       then SPACECP_RPJAR="$arg"
       else printf '%s\n' "'$arg' is not a valid RTK plugin jar."; $(ex 1)
       fi
-      shift;;
+      [ -n "$ds" ] && shift;;
     $_____) if [ "$arg" = "$____" ]; then __; $(ex 1); fi;;
     *) printf '%s\n' "Invalid argument '$1'"; $(ex 1);;
   esac
